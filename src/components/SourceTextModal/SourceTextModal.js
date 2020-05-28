@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import { Modal, Header, Icon, Button } from "semantic-ui-react";
-import "./App.css";
 
 class SourceTextModal extends Component {
   render() {

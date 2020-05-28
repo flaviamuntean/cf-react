@@ -9,7 +9,6 @@ import {
   Message,
   Checkbox,
 } from "semantic-ui-react";
-import "./App.css";
 import { createClient } from "contentful";
 
 class Cli extends Component {

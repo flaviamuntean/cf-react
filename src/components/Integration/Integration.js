@@ -1,15 +1,17 @@
 import React, { Component } from "react";
 import { Form, Header, Dropdown, Grid, Button } from "semantic-ui-react";
-import "./App.css";
-import SourceTextModal from "./SourceTextModal";
+import SourceTextModal from "../SourceTextModal/SourceTextModal";
+import AuthDetails from "../AuthDetails/AuthDetails";
+// import Export from "../Export/Export";
+
 import { createClient } from "contentful-management";
 
 Object.filter = (obj, predicate) =>
   Object.fromEntries(Object.entries(obj).filter(predicate));
 
 class Integration extends Component {
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.state = {
       space: {},
       environment: {},
@@ -27,40 +29,55 @@ class Integration extends Component {
       filterField: "",
       dropdownFilterFieldsValues: [],
       filterFieldsValues: [],
+      openAuthModal: true,
+      dropdownSpaces: [],
     };
     this.arr = [];
-    this.managementClient = createClient({
-      accessToken: "CFPAT-DLuFdJmbxdQ8yfleF9mpy6sALkqehYEfrgvFO4MZRrQ",
-    });
+    console.log(this.props.accessToken);
   }
 
-  componentDidMount = async () => {
+  componentWillMount() {
+    this.managementClient = createClient({
+      accessToken: this.props.accessToken,
+    });
     this.getSpaceDetails();
+  }
+
+  componentDidUpdate = (prevProps, prevState) => {
+    if (
+      prevProps.spaceID !== this.props.spaceID ||
+      prevProps.accessToken !== this.props.accessToken
+    ) {
+      this.managementClient = createClient({
+        accessToken: this.props.accessToken,
+      });
+      this.getSpaceDetails();
+    }
   };
 
-  getSpaceDetails = async () => {
-    const space = await this.managementClient.getSpace("mhyerafzzaiq");
-    // console.log(space);
-    this.setState({ space });
-    this.getEnvironment();
-    // this.getContentType();
-    // this.getEntries();
-    this.getContentTypes();
-    this.getLocales();
+  getSpaceDetails = () => {
+    console.log(this.props.spaceID);
+    this.managementClient
+      .getSpace(this.props.spaceID)
+      .then((space) => {
+        this.setState({ space });
+        this.getEnvironment();
+        this.getContentTypes();
+        this.getLocales();
+        this.getSpaces();
+      })
+      .catch(console.log("error"));
   };
 
-  getEnvironment = async () => {
+  getEnvironment = () => {
     const { space } = this.state;
-    const environment = await space.getEnvironment("master");
-    this.setState({ environment });
+    space
+      .getEnvironment("master")
+      .then((environment) => {
+        this.setState({ environment });
+      })
+      .catch(console.log("Environment not found"));
   };
-
-  // getContentType = async () => {
-  //   const { space } = this.state;
-  //   const product = await space.getContentType("product");
-  //   // product.fields (check for localized: true)
-  //   // console.log(product);
-  // };
 
   getIndividualEntry = async (id) => {
     const { space, localizableFields } = this.state;
@@ -69,9 +86,6 @@ class Integration extends Component {
       localizableFields.includes(key)
     );
     localizableEntry.entryId = id;
-    // const localizableEntry = entry.fields.filter((field) =>
-    //   localizableFields.includes(field.id)
-    // );
     this.arr.push(localizableEntry);
     this.setState({ entriesForExport: this.arr });
     this.setState({
@@ -121,16 +135,19 @@ class Integration extends Component {
     this.arr = [];
   };
 
-  getContentTypes = async () => {
+  getContentTypes = () => {
     const { space } = this.state;
-    const response = await space.getContentTypes();
-
-    const dropdownCategories = response.items.map((contentType) => ({
-      key: contentType.sys.id,
-      text: contentType.name,
-      value: contentType.sys.id,
-    }));
-    this.setState({ dropdownContentTypes: dropdownCategories });
+    space
+      .getContentTypes()
+      .then((response) => {
+        const dropdownCategories = response.items.map((contentType) => ({
+          key: contentType.sys.id,
+          text: contentType.name,
+          value: contentType.sys.id,
+        }));
+        this.setState({ dropdownContentTypes: dropdownCategories });
+      })
+      .catch(console.log("Content types not found"));
   };
 
   setContentType = (e, { value }) => {
@@ -148,25 +165,23 @@ class Integration extends Component {
     }
   };
 
-  getLocales = async () => {
+  getLocales = () => {
     const { space } = this.state;
-    const response = await space.getLocales();
-
-    const dropdownCategories = response.items.map((locale) => ({
-      key: locale.sys.id,
-      text: locale.name,
-      value: locale.code,
-    }));
-    this.setState({ dropdownLocales: dropdownCategories });
+    space
+      .getLocales()
+      .then((response) => {
+        const dropdownCategories = response.items.map((locale) => ({
+          key: locale.sys.id,
+          text: locale.name,
+          value: locale.code,
+        }));
+        this.setState({ dropdownLocales: dropdownCategories });
+      })
+      .catch(console.log("Locales not found"));
   };
 
   setLocale = (e, { value }) => {
     this.setState({ locale: value });
-    // if (value) {
-    //   this.getFields(value);
-    // } else {
-    //   this.setState({ dropdownFields: [] });
-    // }
   };
 
   getFields = async (contentType) => {
@@ -268,16 +283,54 @@ class Integration extends Component {
     this.setState({ openSourceTextModal: true });
   };
 
-  importForm = () => {
+  displayAuthDetails = () => {
+    const { openAuthModal } = this.props;
+    const { dropdownSpaces } = this.state;
+
+    return (
+      <AuthDetails
+        dropdownSpaces={dropdownSpaces}
+        dropdownEnvironments={[]}
+        changeToken={openAuthModal}
+      />
+    );
+  };
+
+  getSpaces = () => {
+    this.managementClient
+      .getSpaces()
+      .then((spaces) => {
+        const dropdownCategories = spaces.items.map((space) => ({
+          key: space.sys.id,
+          text: space.name,
+          value: space.sys.id,
+        }));
+        this.setState({ dropdownSpaces: dropdownCategories });
+      })
+      .catch(console.log("error"));
+  };
+
+  getEnvironments = () => {
+    this.managementClient
+      .getSpaces()
+      .then((spaces) => {
+        const dropdownCategories = spaces.items.map((space) => ({
+          key: space.sys.id,
+          text: space.name,
+          value: space.sys.id,
+        }));
+        this.setState({ dropdownSpaces: dropdownCategories });
+      })
+      .catch(console.log("error"));
+  };
+
+  export = () => {
     const {
       openSourceTextModal,
-      translation,
       sourceText,
       dropdownContentTypes,
       contentType,
       dropdownFields,
-      dropdownLocales,
-      locale,
       localizableFields,
       dropdownFilterFields,
       filterField,
@@ -286,6 +339,7 @@ class Integration extends Component {
     } = this.state;
     return (
       <div>
+        {this.displayAuthDetails()}
         <Header as="h2">Export</Header>
         <Grid columns={2}>
           <p style={{ marginTop: "20px", marginBottom: "0" }}>
@@ -365,6 +419,19 @@ class Integration extends Component {
             </Grid.Column>
           </Grid.Row>
         </Grid>
+        <SourceTextModal
+          open={openSourceTextModal}
+          sourceText={sourceText}
+          handleCloseModal={this.handleCloseModal}
+        />
+      </div>
+    );
+  };
+
+  import = () => {
+    const { translation, dropdownLocales, locale } = this.state;
+    return (
+      <div>
         <Header as="h2" style={{ marginTop: "45px" }}>
           Import
         </Header>
@@ -391,17 +458,17 @@ class Integration extends Component {
             Import
           </Form.Button>
         </Form>
-        <SourceTextModal
-          open={openSourceTextModal}
-          sourceText={sourceText}
-          handleCloseModal={this.handleCloseModal}
-        />
       </div>
     );
   };
 
   render() {
-    return this.importForm();
+    return (
+      <div>
+        {this.export()}
+        {this.import()}
+      </div>
+    );
   }
 }
 
