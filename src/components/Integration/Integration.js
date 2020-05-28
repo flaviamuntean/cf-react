@@ -450,13 +450,14 @@ class Integration extends Component {
             value={translation}
             onChange={(e) => this.setTranslation(e)}
           />
-          <Form.Button
+          <Button
+            color="teal"
             disabled={!translation || !locale}
             fluid
             onClick={this.submitForm}
           >
             Import
-          </Form.Button>
+          </Button>
         </Form>
       </div>
     );

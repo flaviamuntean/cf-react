@@ -45,7 +45,7 @@ class AuthDetails extends Component {
       <Grid columns={3}>
         <Grid.Row>
           <Grid.Column>
-            <Button fluid onClick={changeToken}>
+            <Button color="red" fluid onClick={changeToken}>
               Change Access Token
             </Button>
           </Grid.Column>
