@@ -18,50 +18,38 @@ class App extends Component {
   constructor() {
     super();
     this.state = {
-      spaceID: "",
       accessToken: "",
       submittedAccessToken: "testtoken",
-      submittedSpaceID: "",
       open: true,
     };
   }
 
   componentWillMount() {
     const cookieData = CookieUtils.readUserStateFromCookies();
-    const { spaceID, accessToken } = cookieData;
+    const { accessToken } = cookieData;
 
-    this.setState({ spaceID, accessToken });
+    this.setState({ accessToken });
 
-    if (cookieData.spaceID && cookieData.accessToken) {
+    if (cookieData.accessToken) {
       this.setState({
         open: false,
         submittedAccessToken: accessToken,
-        submittedSpaceID: spaceID,
       });
     }
   }
 
-  handleTokenChange = (e, { name, value }) =>
-    this.setState({ [name]: value }, () => {
+  handleTokenChange = (e, { value }) =>
+    this.setState({ accessToken: value }, () => {
       const key = `access_token`;
       // 5 days from the current time
       const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
       WindowUtils.setCookie(key, value, expires);
     });
 
-  handleSpaceChange = (e, { name, value }) =>
-    this.setState({ [name]: value }, () => {
-      const key = `space_id`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
-    });
-
   handleSubmit = () => {
-    const { spaceID, accessToken } = this.state;
+    const { accessToken } = this.state;
 
     this.setState({
-      submittedSpaceID: spaceID,
       submittedAccessToken: accessToken,
       open: false,
     });
@@ -72,13 +60,7 @@ class App extends Component {
   };
 
   render() {
-    const {
-      open,
-      spaceID,
-      accessToken,
-      submittedAccessToken,
-      submittedSpaceID,
-    } = this.state;
+    const { open, accessToken, submittedAccessToken } = this.state;
 
     return (
       <Container style={{ marginTop: "60px", marginBottom: "60px" }}>
@@ -88,7 +70,6 @@ class App extends Component {
               {/* <Cli />
               <Divider style={{ marginTop: "50px" }} /> */}
               <Integration
-                spaceID={submittedSpaceID}
                 accessToken={submittedAccessToken}
                 openAuthModal={this.openAuthModal}
               />
@@ -98,16 +79,8 @@ class App extends Component {
                     <Header>Contentful Authentication</Header>
                     <Form>
                       <Form.Input
-                        placeholder="Space ID"
-                        label="Space ID"
-                        name="spaceID"
-                        value={spaceID}
-                        onChange={this.handleSpaceChange}
-                      />
-                      <Form.Input
                         placeholder="CDM Access Token"
                         label="CDM Access Token"
-                        name="accessToken"
                         value={accessToken}
                         onChange={this.handleTokenChange}
                       />
@@ -118,7 +91,7 @@ class App extends Component {
                   <Button
                     primary
                     onClick={this.handleSubmit}
-                    disabled={!accessToken || !spaceID}
+                    disabled={!accessToken}
                   >
                     Submit
                   </Button>

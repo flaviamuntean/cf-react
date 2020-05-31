@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Header, Dropdown, Grid, Button } from "semantic-ui-react";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
-import { createClient } from "contentful-management";
+// import Export from "../Export/Export";
 
 Object.filter = (obj, predicate) =>
   Object.fromEntries(Object.entries(obj).filter(predicate));
@@ -10,72 +10,159 @@ class Export extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      space: {},
-      environment: {},
-      openSourceTextModal: false,
       sourceText: "",
-      dropdownContentTypes: [],
-      contentType: "",
-      dropdownFields: [],
-      localizableFields: [],
       entriesForExport: [],
-      dropdownFilterFields: [],
-      filterField: "",
-      dropdownFilterFieldsValues: [],
-      filterFieldsValues: [],
+      // basic states
+
+      selectedContentType: "",
+      fields: [],
+      selectedFields: [],
+      // filters
+      filters: [],
+      selectedFilter: "",
+      filterValues: [],
+      selectedFilterValues: [],
+      // modals
+      openSourceTextModal: false,
+      //
     };
     this.arr = [];
-    console.log(this.props.accessToken);
   }
 
-  componentWillMount() {
-    this.managementClient = createClient({
-      accessToken: this.props.accessToken,
-    });
-    this.getSpaceDetails();
-  }
+  // EXPORT OPTIONS
 
-  componentDidUpdate = (prevProps, prevState) => {
-    if (
-      prevProps.spaceID !== this.props.spaceID ||
-      prevProps.accessToken !== this.props.accessToken
-    ) {
-      this.managementClient = createClient({
-        accessToken: this.props.accessToken,
+  setContentType = (e, { value }) => {
+    this.setState({ selectedContentType: value });
+    if (value) {
+      this.getFields(value);
+      this.getFilters(value);
+    } else {
+      this.setState({
+        fields: [],
+        filters: [],
+        selectedFields: [],
+        selectedFilter: "",
+        selectedFilterValues: [],
       });
-      this.getSpaceDetails();
     }
   };
 
-  getSpaceDetails = () => {
-    console.log(this.props.spaceID);
-    this.managementClient
-      .getSpace(this.props.spaceID)
-      .then((space) => {
-        this.setState({ space });
-        this.getEnvironment();
-        this.getContentTypes();
-        this.getLocales();
-        this.getSpaces();
-      })
-      .catch(console.log("error"));
+  getFields = async (contentType) => {
+    const { environmentObject } = this.state;
+
+    const response = await (await environmentObject.getContentType(contentType))
+      .fields;
+    const selectedFields = response.filter((field) => field.localized === true);
+    const dropdownCategories = selectedFields.map((field) => ({
+      key: field.id,
+      text: field.name,
+      value: field.id,
+    }));
+    this.setState({ fields: dropdownCategories });
   };
 
-  getEnvironment = () => {
-    const { space } = this.state;
-    space
-      .getEnvironment("master")
-      .then((environment) => {
-        this.setState({ environment });
-      })
-      .catch(console.log("Environment not found"));
+  setFields = (e, { value }) => {
+    this.setState({ selectedFields: value });
+  };
+
+  // EXPORT FILTERS
+
+  getFilters = async (contentType) => {
+    const { environmentObject } = this.state;
+
+    const response = await (await environmentObject.getContentType(contentType))
+      .fields;
+    const dropdownCategories = response.map((field) => ({
+      key: field.id,
+      text: field.name,
+      value: field.id,
+    }));
+    this.setState({ filters: dropdownCategories });
+  };
+
+  setFilters = (e, { value }) => {
+    const { selectedContentType } = this.state;
+    this.setState({ selectedFilter: value });
+    if (value) {
+      this.getFilterValues(selectedContentType, value);
+    } else {
+      this.setState({ selectedFilterValues: [] });
+    }
+  };
+
+  getFilterValues = async (chosenContentType, chosenField) => {
+    const { environmentObject } = this.state;
+    const entries = await environmentObject.getEntries({
+      content_type: chosenContentType,
+    });
+
+    const fieldValues = entries.items.map(
+      (entry) => entry.fields[chosenField] || null
+    );
+    const fieldValuesArray = fieldValues.map((entry) => {
+      if (entry) {
+        return entry["en-US"];
+      }
+      return "";
+    });
+
+    const uniqueFieldValues = fieldValuesArray
+      .flat()
+      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i)
+      .filter((v) => v !== "");
+
+    const dropdownCategories = uniqueFieldValues.map((value) => ({
+      key: value,
+      text: value,
+      value: value,
+    }));
+    this.setState({ filterValues: dropdownCategories });
+  };
+
+  setFilterValues = (e, { value }) => {
+    if (value) {
+      this.setState({ selectedFilterValues: value });
+    } else {
+      this.setState({ selectedFilterValues: [] });
+    }
+  };
+
+  // HANDLE EXPORT
+
+  handleExport = async () => {
+    const {
+      environmentObject,
+      selectedContentType,
+      selectedFilterValues,
+      selectedFilter,
+    } = this.state;
+    const selectedFilterValuesString = selectedFilterValues.join(",");
+    let query;
+
+    if (selectedFilterValues.length > 1) {
+      query = `fields.${selectedFilter}[in]`;
+    } else {
+      query = `fields.${selectedFilter}`;
+    }
+
+    const entries = await environmentObject.getEntries({
+      content_type: selectedContentType,
+      [query]: selectedFilterValuesString,
+    });
+    const entryIDs = entries.items.map((item) => item.sys.id);
+    this.getEntries(entryIDs);
+    this.setState({ openSourceTextModal: true });
+  };
+
+  getEntries = (entryIDs) => {
+    entryIDs.map((id) => this.getIndividualEntry(id));
   };
 
   getIndividualEntry = async (id) => {
-    const { space, localizableFields } = this.state;
-    const entry = await space.getEntry(id);
+    const { environmentObject, selectedFields } = this.state;
+    const entry = await environmentObject.getEntry(id);
     const localizableEntry = Object.filter(entry.fields, ([key, value]) =>
-      localizableFields.includes(key)
+      selectedFields.includes(key)
     );
     localizableEntry.entryId = id;
     this.arr.push(localizableEntry);
@@ -85,155 +172,27 @@ class Export extends Component {
     });
   };
 
-  getEntries = (entryIDs) => {
-    entryIDs.map((id) => this.getIndividualEntry(id));
-  };
-
   handleCloseModal = () => {
     this.setState({ openSourceTextModal: false, sourceText: "" });
     this.arr = [];
-  };
-
-  getContentTypes = () => {
-    const { space } = this.state;
-    space
-      .getContentTypes()
-      .then((response) => {
-        const dropdownCategories = response.items.map((contentType) => ({
-          key: contentType.sys.id,
-          text: contentType.name,
-          value: contentType.sys.id,
-        }));
-        this.setState({ dropdownContentTypes: dropdownCategories });
-      })
-      .catch(console.log("Content types not found"));
-  };
-
-  setContentType = (e, { value }) => {
-    this.setState({ contentType: value });
-    if (value) {
-      this.getFields(value);
-      this.getFilterFields(value);
-    } else {
-      this.setState({
-        dropdownFields: [],
-        dropdownFilterFields: [],
-        localizableFields: [],
-        filterField: "",
-      });
-    }
-  };
-
-  getFields = async (contentType) => {
-    const { space } = this.state;
-
-    const response = await (await space.getContentType(contentType)).fields;
-    const localizableFields = response.filter(
-      (field) => field.localized === true
-    );
-    const dropdownCategories = localizableFields.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
-    this.setState({ dropdownFields: dropdownCategories });
-  };
-
-  setFields = (e, { value }) => {
-    this.setState({ localizableFields: value });
-  };
-
-  getFilterFields = async (contentType) => {
-    const { space } = this.state;
-
-    const response = await (await space.getContentType(contentType)).fields;
-    const dropdownCategories = response.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
-    this.setState({ dropdownFilterFields: dropdownCategories });
-  };
-
-  setFilterField = (e, { value }) => {
-    const { contentType } = this.state;
-    this.setState({ filterField: value });
-    if (value) {
-      this.getFilterFieldValues(contentType, value);
-    } else {
-      this.setState({ filterFieldsValues: [] });
-    }
-  };
-
-  getFilterFieldValues = async (chosenContentType, chosenField) => {
-    const { space } = this.state;
-    console.log(chosenField);
-    const entries = await space.getEntries({
-      content_type: chosenContentType,
-    });
-
-    console.log(JSON.stringify(entries.items));
-
-    const fieldValues = entries.items.map((entry) => entry.fields[chosenField]);
-    const fieldValuesArray = fieldValues.map((entry) => entry["en-US"]);
-    console.log(fieldValuesArray);
-
-    const uniqueFieldValues = fieldValuesArray
-      .flat()
-      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i);
-
-    const dropdownCategories = uniqueFieldValues.map((value) => ({
-      key: value,
-      text: value,
-      value: value,
-    }));
-    this.setState({ dropdownFilterFieldsValues: dropdownCategories });
-  };
-
-  setFilterFieldValues = (e, { value }) => {
-    if (value) {
-      this.setState({ filterFieldsValues: value });
-    } else {
-      this.setState({ filterFieldsValues: [] });
-    }
-  };
-
-  handleExport = async () => {
-    const { space, contentType, filterFieldsValues, filterField } = this.state;
-    const filterFieldsValuesString = filterFieldsValues.join(",");
-    console.log(filterFieldsValuesString);
-    let query;
-
-    if (filterFieldsValues.length > 1) {
-      query = `fields.${filterField}[in]`;
-    } else {
-      query = `fields.${filterField}`;
-    }
-
-    const entries = await space.getEntries({
-      content_type: contentType,
-      [query]: filterFieldsValuesString,
-    });
-    const entryIDs = entries.items.map((item) => item.sys.id);
-    this.getEntries(entryIDs);
-    this.setState({ openSourceTextModal: true });
   };
 
   export = () => {
     const {
       openSourceTextModal,
       sourceText,
-      dropdownContentTypes,
-      contentType,
-      dropdownFields,
-      localizableFields,
-      dropdownFilterFields,
-      filterField,
-      dropdownFilterFieldsValues,
-      filterFieldsValues,
+      contentTypes,
+      selectedContentType,
+      fields,
+      selectedFields,
+      filters,
+      selectedFilter,
+      filterValues,
+      selectedFilterValues,
     } = this.state;
     return (
       <div>
+        {this.displayAuthDetails()}
         <Header as="h2">Export</Header>
         <Grid columns={2}>
           <p style={{ marginTop: "20px", marginBottom: "0" }}>
@@ -247,8 +206,9 @@ class Export extends Component {
                 selection
                 clearable
                 fluid
-                options={dropdownContentTypes}
+                options={contentTypes}
                 onChange={this.setContentType}
+                value={selectedContentType}
               />
             </Grid.Column>
             <Grid.Column>
@@ -258,10 +218,10 @@ class Export extends Component {
                 clearable
                 multiple
                 fluid
-                disabled={!contentType}
-                options={dropdownFields}
+                disabled={!selectedContentType}
+                options={fields}
                 onChange={this.setFields}
-                value={localizableFields}
+                value={selectedFields}
               />
             </Grid.Column>
           </Grid.Row>
@@ -275,10 +235,10 @@ class Export extends Component {
                 selection
                 clearable
                 fluid
-                disabled={!contentType}
-                options={dropdownFilterFields}
-                onChange={this.setFilterField}
-                value={filterField}
+                disabled={!selectedContentType}
+                options={filters}
+                onChange={this.setFilters}
+                value={selectedFilter}
               />
             </Grid.Column>
             <Grid.Column>
@@ -289,10 +249,10 @@ class Export extends Component {
                 fluid
                 multiple
                 search
-                disabled={!filterField}
-                options={dropdownFilterFieldsValues}
-                onChange={this.setFilterFieldValues}
-                value={filterFieldsValues}
+                disabled={!selectedFilter}
+                options={filterValues}
+                onChange={this.setFilterValues}
+                value={selectedFilterValues}
               />
             </Grid.Column>
           </Grid.Row>
@@ -302,9 +262,9 @@ class Export extends Component {
                 color="teal"
                 fluid
                 disabled={
-                  !contentType ||
-                  localizableFields.length === 0 ||
-                  (filterField && filterFieldsValues.length === 0)
+                  !selectedContentType ||
+                  selectedFields.length === 0 ||
+                  (!!selectedFilter && selectedFilterValues.length === 0)
                 }
                 onClick={this.handleExport}
               >

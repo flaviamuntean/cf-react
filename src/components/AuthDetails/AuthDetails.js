@@ -7,27 +7,18 @@ class AuthDetails extends Component {
   constructor() {
     super();
     this.state = {
-      space: "",
       environment: "",
       submittedSpace: "",
       submittedEnvironment: "",
     };
   }
 
-  componentWillMount() {
+  componentDidMount() {
     const cookieData = CookieUtils.readUserStateFromCookies();
-    const { space, environment } = cookieData;
+    const { environment } = cookieData;
 
-    this.setState({ space, environment });
+    this.setState({ environment });
   }
-
-  handleSpaceChange = (e, { name, value }) =>
-    this.setState({ [name]: value }, () => {
-      const key = `space`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
-    });
 
   handleEnvironmentChange = (e, { name, value }) =>
     this.setState({ [name]: value }, () => {
@@ -38,8 +29,15 @@ class AuthDetails extends Component {
     });
 
   render() {
-    const { space, environment } = this.state;
-    const { dropdownSpaces, dropdownEnvironments, changeToken } = this.props;
+    const {
+      changeToken,
+      spaces,
+      selectedSpace,
+      environments,
+      selectedEnvironment,
+      handleSpaceSelection,
+      handleEnvironmentSelection,
+    } = this.props;
 
     return (
       <Grid columns={3}>
@@ -54,10 +52,9 @@ class AuthDetails extends Component {
               placeholder="Choose your space"
               selection
               fluid
-              name="space"
-              value={space}
-              options={dropdownSpaces}
-              onChange={this.handleSpaceChange}
+              value={selectedSpace}
+              options={spaces}
+              onChange={handleSpaceSelection}
             />
           </Grid.Column>
           <Grid.Column>
@@ -66,10 +63,10 @@ class AuthDetails extends Component {
               selection
               fluid
               name="environment"
-              value={environment}
-              options={dropdownEnvironments}
-              onChange={this.handleEnvironmentChange}
-              disabled={!space}
+              value={selectedEnvironment}
+              options={environments}
+              onChange={handleEnvironmentSelection}
+              disabled={!selectedSpace}
             />
           </Grid.Column>
         </Grid.Row>

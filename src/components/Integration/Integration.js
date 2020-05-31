@@ -2,6 +2,8 @@ import React, { Component } from "react";
 import { Form, Header, Dropdown, Grid, Button } from "semantic-ui-react";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
 import AuthDetails from "../AuthDetails/AuthDetails";
+import CookieUtils from "../../utils/CookieUtils";
+import WindowUtils from "../../utils/WindowUtils";
 // import Export from "../Export/Export";
 
 import { createClient } from "contentful-management";
@@ -13,34 +15,39 @@ class Integration extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      space: {},
-      environment: {},
       translation: "",
-      openSourceTextModal: false,
       sourceText: "",
-      dropdownContentTypes: [],
-      contentType: "",
-      dropdownFields: [],
-      localizableFields: [],
       entriesForExport: [],
-      dropdownLocales: [],
-      locale: "",
-      dropdownFilterFields: [],
-      filterField: "",
-      dropdownFilterFieldsValues: [],
-      filterFieldsValues: [],
+      // basic states
+      spaces: [],
+      selectedSpace: "",
+      spaceObject: null,
+      environments: [],
+      selectedEnvironment: "",
+      environmentObject: null,
+      // export options
+      contentTypes: [],
+      selectedContentType: "",
+      fields: [],
+      selectedFields: [],
+      // filters
+      filters: [],
+      selectedFilter: "",
+      filterValues: [],
+      selectedFilterValues: [],
+      // locales
+      locales: [],
+      selectedLocale: "",
+      // modals
       openAuthModal: true,
-      dropdownSpaces: [],
+      openSourceTextModal: false,
+      //
     };
-    this.arr = [];
-    console.log(this.props.accessToken);
+    this.localizableArray = [];
   }
 
-  componentWillMount() {
-    this.managementClient = createClient({
-      accessToken: this.props.accessToken,
-    });
-    this.getSpaceDetails();
+  componentDidMount() {
+    this.getInitialIntegrationDetails();
   }
 
   componentDidUpdate = (prevProps, prevState) => {
@@ -48,254 +55,93 @@ class Integration extends Component {
       prevProps.spaceID !== this.props.spaceID ||
       prevProps.accessToken !== this.props.accessToken
     ) {
-      this.managementClient = createClient({
-        accessToken: this.props.accessToken,
-      });
-      this.getSpaceDetails();
+      this.getInitialIntegrationDetails();
     }
   };
 
-  getSpaceDetails = () => {
-    console.log(this.props.spaceID);
-    this.managementClient
-      .getSpace(this.props.spaceID)
-      .then((space) => {
-        this.setState({ space });
-        this.getEnvironment();
-        this.getContentTypes();
-        this.getLocales();
-        this.getSpaces();
-      })
-      .catch(console.log("error"));
-  };
-
-  getEnvironment = () => {
-    const { space } = this.state;
-    space
-      .getEnvironment("master")
-      .then((environment) => {
-        this.setState({ environment });
-      })
-      .catch(console.log("Environment not found"));
-  };
-
-  getIndividualEntry = async (id) => {
-    const { space, localizableFields } = this.state;
-    const entry = await space.getEntry(id);
-    const localizableEntry = Object.filter(entry.fields, ([key, value]) =>
-      localizableFields.includes(key)
-    );
-    localizableEntry.entryId = id;
-    this.arr.push(localizableEntry);
-    this.setState({ entriesForExport: this.arr });
+  setInitState = () => {
     this.setState({
-      sourceText: JSON.stringify(this.state.entriesForExport),
+      spaces: [],
+      selectedSpace: "",
+      spaceObject: null,
+      environments: [],
+      selectedEnvironment: "",
+      environmentObject: null,
+      contentTypes: [],
+      selectedContentType: "",
+      fields: [],
+      filters: [],
+      selectedFields: [],
+      selectedFilter: "",
+      selectedFilterValues: [],
     });
   };
 
-  getEntries = (entryIDs) => {
-    entryIDs.map((id) => this.getIndividualEntry(id));
-  };
-
-  submitForm = () => {
-    const { translation, space, locale } = this.state;
-    const parsedTranslation = JSON.parse(translation);
-
-    parsedTranslation.forEach((entryItem) => {
-      let keys = Object.keys(entryItem);
-      // Remove the id from the content to be imported
-      keys = keys.splice(0, keys.length - 1);
-
-      space
-        .getEntry(entryItem.entryId)
-        .then((entry) => {
-          console.log(keys);
-          keys.forEach((key) => {
-            // If the translation is different to the source text
-            if (entry.fields[key][locale] !== entryItem[key][locale]) {
-              // Update the source text
-              entry.fields[key][locale] = entryItem[key][locale];
-            }
-          });
-          entry.update();
-        })
-        .then(console.log(`Entry ${entryItem.entryId} updated.`))
-        .catch(console.error);
+  getInitialIntegrationDetails = () => {
+    this.managementClient = createClient({
+      accessToken: this.props.accessToken,
     });
+    this.getSpaces();
+    const cookieData = CookieUtils.readUserStateFromCookies();
+    const { space, environment } = cookieData;
 
-    this.setState({ translation: "" });
+    this.setState({ selectedSpace: space, selectedEnvironment: environment });
+
+    if (space) {
+      this.managementClient
+        .getSpace(space)
+        .then((space) => this.setState({ spaceObject: space }));
+      this.getEnvironments(space);
+    }
+
+    if (space && environment) {
+      this.managementClient
+        .getSpace(space)
+        .then((space) => space.getEnvironment(environment))
+        .then((environment) =>
+          this.setState({ environmentObject: environment })
+        );
+      this.getContentTypesAndLocales(space, environment);
+    }
   };
 
-  setTranslation = (e) => {
-    this.setState({ translation: e.target.value });
-  };
-
-  handleCloseModal = () => {
-    this.setState({ openSourceTextModal: false, sourceText: "" });
-    this.arr = [];
-  };
-
-  getContentTypes = () => {
-    const { space } = this.state;
-    space
-      .getContentTypes()
-      .then((response) => {
-        const dropdownCategories = response.items.map((contentType) => ({
-          key: contentType.sys.id,
-          text: contentType.name,
-          value: contentType.sys.id,
-        }));
-        this.setState({ dropdownContentTypes: dropdownCategories });
+  getContentTypesAndLocales = (space, environment) => {
+    this.managementClient
+      .getSpace(space)
+      .then((space) => space.getEnvironment(environment))
+      .then((environment) => {
+        this.getContentTypes(environment);
+        this.getLocales(environment);
       })
-      .catch(console.log("Content types not found"));
-  };
-
-  setContentType = (e, { value }) => {
-    this.setState({ contentType: value });
-    if (value) {
-      this.getFields(value);
-      this.getFilterFields(value);
-    } else {
-      this.setState({
-        dropdownFields: [],
-        dropdownFilterFields: [],
-        localizableFields: [],
-        filterField: "",
+      .catch((e) => {
+        console.log(e);
       });
-    }
   };
 
-  getLocales = () => {
-    const { space } = this.state;
-    space
-      .getLocales()
-      .then((response) => {
-        const dropdownCategories = response.items.map((locale) => ({
-          key: locale.sys.id,
-          text: locale.name,
-          value: locale.code,
-        }));
-        this.setState({ dropdownLocales: dropdownCategories });
-      })
-      .catch(console.log("Locales not found"));
-  };
-
-  setLocale = (e, { value }) => {
-    this.setState({ locale: value });
-  };
-
-  getFields = async (contentType) => {
-    const { space } = this.state;
-
-    const response = await (await space.getContentType(contentType)).fields;
-    const localizableFields = response.filter(
-      (field) => field.localized === true
-    );
-    const dropdownCategories = localizableFields.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
-    this.setState({ dropdownFields: dropdownCategories });
-  };
-
-  setFields = (e, { value }) => {
-    // const { contentType } = this.state;
-    this.setState({ localizableFields: value });
-    // if (value) {
-    //   this.getFieldValues(contentType, value);
-    // }
-  };
-
-  getFilterFields = async (contentType) => {
-    const { space } = this.state;
-
-    const response = await (await space.getContentType(contentType)).fields;
-    const dropdownCategories = response.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
-    this.setState({ dropdownFilterFields: dropdownCategories });
-  };
-
-  setFilterField = (e, { value }) => {
-    const { contentType } = this.state;
-    this.setState({ filterField: value });
-    if (value) {
-      this.getFilterFieldValues(contentType, value);
-    } else {
-      this.setState({ filterFieldsValues: [] });
-    }
-  };
-
-  getFilterFieldValues = async (chosenContentType, chosenField) => {
-    const { space } = this.state;
-    console.log(chosenField);
-    const entries = await space.getEntries({
-      content_type: chosenContentType,
-    });
-
-    console.log(JSON.stringify(entries.items));
-
-    const fieldValues = entries.items.map((entry) => entry.fields[chosenField]);
-    const fieldValuesArray = fieldValues.map((entry) => entry["en-US"]);
-    console.log(fieldValuesArray);
-
-    const uniqueFieldValues = fieldValuesArray
-      .flat()
-      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i);
-
-    const dropdownCategories = uniqueFieldValues.map((value) => ({
-      key: value,
-      text: value,
-      value: value,
-    }));
-    this.setState({ dropdownFilterFieldsValues: dropdownCategories });
-  };
-
-  setFilterFieldValues = (e, { value }) => {
-    if (value) {
-      this.setState({ filterFieldsValues: value });
-    } else {
-      this.setState({ filterFieldsValues: [] });
-    }
-  };
-
-  handleExport = async () => {
-    const { space, contentType, filterFieldsValues, filterField } = this.state;
-    const filterFieldsValuesString = filterFieldsValues.join(",");
-    console.log(filterFieldsValuesString);
-    let query;
-
-    if (filterFieldsValues.length > 1) {
-      query = `fields.${filterField}[in]`;
-    } else {
-      query = `fields.${filterField}`;
-    }
-
-    const entries = await space.getEntries({
-      content_type: contentType,
-      [query]: filterFieldsValuesString,
-    });
-    const entryIDs = entries.items.map((item) => item.sys.id);
-    this.getEntries(entryIDs);
-    this.setState({ openSourceTextModal: true });
-  };
-
+  // Display the first section of the integration
   displayAuthDetails = () => {
     const { openAuthModal } = this.props;
-    const { dropdownSpaces } = this.state;
+    const {
+      spaces,
+      environments,
+      selectedSpace,
+      selectedEnvironment,
+    } = this.state;
 
     return (
       <AuthDetails
-        dropdownSpaces={dropdownSpaces}
-        dropdownEnvironments={[]}
         changeToken={openAuthModal}
+        spaces={spaces}
+        environments={environments}
+        selectedSpace={selectedSpace}
+        selectedEnvironment={selectedEnvironment}
+        handleSpaceSelection={this.handleSpaceSelection}
+        handleEnvironmentSelection={this.handleEnvironmentSelection}
       />
     );
   };
 
+  // Get all spaces for the token
   getSpaces = () => {
     this.managementClient
       .getSpaces()
@@ -305,37 +151,313 @@ class Integration extends Component {
           text: space.name,
           value: space.sys.id,
         }));
-        this.setState({ dropdownSpaces: dropdownCategories });
+        this.setState({ spaces: dropdownCategories });
       })
-      .catch(console.log("error"));
+      .catch((e) => {
+        console.log(e);
+        // Remove all information on spaces and environments if the spaces are not fetched (most likely due to the token being invalid)
+        this.setInitState();
+      });
   };
 
-  getEnvironments = () => {
+  // Select a space
+  handleSpaceSelection = (e, { value }) => {
+    this.setState({ selectedSpace: value }, () => {
+      const key = `space`;
+      // 5 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      WindowUtils.setCookie(key, value, expires);
+    });
+    if (value) {
+      console.log(value);
+      this.managementClient
+        .getSpace(value)
+        .then((space) => this.setState({ spaceObject: space }));
+      this.setState({ selectedEnvironment: "" });
+      const key = `environment`;
+      // 5 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      WindowUtils.setCookie(key, "", expires);
+      this.getEnvironments(value);
+    }
+  };
+
+  // Get environments for the space
+  getEnvironments = (space) => {
     this.managementClient
-      .getSpaces()
-      .then((spaces) => {
-        const dropdownCategories = spaces.items.map((space) => ({
-          key: space.sys.id,
-          text: space.name,
-          value: space.sys.id,
+      .getSpace(space)
+      .then((space) => space.getEnvironments())
+      .then((environments) => {
+        const dropdownCategories = environments.items.map((environment) => ({
+          key: environment.sys.id,
+          text: environment.name,
+          value: environment.sys.id,
         }));
-        this.setState({ dropdownSpaces: dropdownCategories });
+        this.setState({ environments: dropdownCategories });
       })
-      .catch(console.log("error"));
+      .catch((e) => {
+        console.log(e);
+      });
+  };
+
+  // Select an environment
+  handleEnvironmentSelection = (e, { value }) => {
+    this.setState({ selectedEnvironment: value }, () => {
+      const key = `environment`;
+      // 5 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      WindowUtils.setCookie(key, value, expires);
+    });
+    if (value) {
+      const { spaceObject } = this.state;
+      spaceObject
+        .getEnvironment(value)
+        .then((environment) =>
+          this.setState({ environmentObject: environment })
+        );
+    }
+  };
+
+  // EXPORT OPTIONS
+
+  getContentTypes = (environment) => {
+    environment
+      .getContentTypes()
+      .then((response) => {
+        const dropdownCategories = response.items.map((contentType) => ({
+          key: contentType.sys.id,
+          text: contentType.name,
+          value: contentType.sys.id,
+        }));
+        this.setState({ contentTypes: dropdownCategories });
+      })
+      .catch((e) => {
+        console.log(e);
+      });
+  };
+
+  setContentType = (e, { value }) => {
+    this.setState({ selectedContentType: value });
+    if (value) {
+      this.getFields(value);
+      this.getFilters(value);
+    } else {
+      this.setState({
+        fields: [],
+        filters: [],
+        selectedFields: [],
+        selectedFilter: "",
+        selectedFilterValues: [],
+      });
+    }
+  };
+
+  getFields = async (contentType) => {
+    const { environmentObject } = this.state;
+
+    const response = await (await environmentObject.getContentType(contentType))
+      .fields;
+    const selectedFields = response.filter((field) => field.localized === true);
+    const dropdownCategories = selectedFields.map((field) => ({
+      key: field.id,
+      text: field.name,
+      value: field.id,
+    }));
+    this.setState({ fields: dropdownCategories });
+  };
+
+  setFields = (e, { value }) => {
+    this.setState({ selectedFields: value });
+  };
+
+  // EXPORT FILTERS
+
+  getFilters = async (contentType) => {
+    const { environmentObject } = this.state;
+
+    const response = await (await environmentObject.getContentType(contentType))
+      .fields;
+    const dropdownCategories = response.map((field) => ({
+      key: field.id,
+      text: field.name,
+      value: field.id,
+    }));
+    this.setState({ filters: dropdownCategories });
+  };
+
+  setFilters = (e, { value }) => {
+    const { selectedContentType } = this.state;
+    this.setState({ selectedFilter: value });
+    if (value) {
+      this.getFilterValues(selectedContentType, value);
+    } else {
+      this.setState({ selectedFilterValues: [] });
+    }
+  };
+
+  getFilterValues = async (chosenContentType, chosenField) => {
+    const { environmentObject } = this.state;
+    const entries = await environmentObject.getEntries({
+      content_type: chosenContentType,
+    });
+
+    const fieldValues = entries.items.map(
+      (entry) => entry.fields[chosenField] || null
+    );
+    const fieldValuesArray = fieldValues.map((entry) => {
+      if (entry) {
+        return entry["en-US"];
+      }
+      return "";
+    });
+
+    const uniqueFieldValues = fieldValuesArray
+      .flat()
+      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i)
+      .filter((v) => v !== "");
+
+    const dropdownCategories = uniqueFieldValues.map((value) => ({
+      key: value,
+      text: value,
+      value: value,
+    }));
+    this.setState({ filterValues: dropdownCategories });
+  };
+
+  setFilterValues = (e, { value }) => {
+    if (value) {
+      this.setState({ selectedFilterValues: value });
+    } else {
+      this.setState({ selectedFilterValues: [] });
+    }
+  };
+
+  // HANDLE EXPORT
+
+  handleExport = async () => {
+    const {
+      environmentObject,
+      selectedContentType,
+      selectedFilterValues,
+      selectedFilter,
+    } = this.state;
+    const selectedFilterValuesString = selectedFilterValues.join(",");
+    let query;
+
+    if (selectedFilterValues.length > 1) {
+      query = `fields.${selectedFilter}[in]`;
+    } else {
+      query = `fields.${selectedFilter}`;
+    }
+
+    const entries = await environmentObject.getEntries({
+      content_type: selectedContentType,
+      [query]: selectedFilterValuesString,
+    });
+    // get all of the entry IDs for the entries that match the query
+    const entryIDs = entries.items.map((item) => item.sys.id);
+    this.getEntries(entryIDs);
+    this.setState({ openSourceTextModal: true });
+  };
+
+  getEntries = (entryIDs) => {
+    entryIDs.forEach((id) => this.getIndividualEntry(id));
+  };
+
+  getIndividualEntry = async (id) => {
+    const { environmentObject, selectedFields } = this.state;
+    // get the Contentful entry object based on the id
+    const entry = await environmentObject.getEntry(id);
+    // out of the fields in that entry, only keep in the ones selected by the user
+    const localizableEntry = Object.filter(entry.fields, ([key, value]) =>
+      selectedFields.includes(key)
+    );
+    // add the id in this new entry object
+    localizableEntry.entryId = id;
+    this.localizableArray.push(localizableEntry);
+    this.setState({ entriesForExport: this.localizableArray });
+    this.setState({
+      sourceText: JSON.stringify(this.state.entriesForExport),
+    });
+  };
+
+  handleCloseModal = () => {
+    this.setState({ openSourceTextModal: false, sourceText: "" });
+    this.localizableArray = [];
+  };
+
+  // IMPORT
+
+  getLocales = (environment) => {
+    environment
+      .getLocales()
+      .then((response) => {
+        const dropdownCategories = response.items.map((locale) => ({
+          key: locale.sys.id,
+          text: locale.name,
+          value: locale.code,
+        }));
+        this.setState({ locales: dropdownCategories });
+      })
+      .catch((e) => {
+        console.log(e);
+      });
+  };
+
+  setLocale = (e, { value }) => {
+    this.setState({ selectedLocale: value });
+  };
+
+  setTranslation = (e) => {
+    this.setState({ translation: e.target.value });
+  };
+
+  submitForm = () => {
+    const { translation, environmentObject, selectedLocale } = this.state;
+    const parsedTranslation = JSON.parse(translation);
+
+    parsedTranslation.forEach((entryItem) => {
+      let keys = Object.keys(entryItem);
+      // Remove the id from the content to be imported
+      keys = keys.splice(0, keys.length - 1);
+
+      environmentObject
+        .getEntry(entryItem.entryId)
+        .then((entry) => {
+          keys.forEach((key) => {
+            // If the translation is different to the source text
+            if (
+              entry.fields[key][selectedLocale] !==
+              entryItem[key][selectedLocale]
+            ) {
+              // Update the source text
+              entry.fields[key][selectedLocale] =
+                entryItem[key][selectedLocale];
+            }
+          });
+          entry.update();
+        })
+        .then(console.log(`Entry ${entryItem.entryId} updated.`))
+        .catch((e) => {
+          console.log(e);
+        });
+    });
+
+    this.setState({ translation: "", selectedLocale: "" });
   };
 
   export = () => {
     const {
       openSourceTextModal,
       sourceText,
-      dropdownContentTypes,
-      contentType,
-      dropdownFields,
-      localizableFields,
-      dropdownFilterFields,
-      filterField,
-      dropdownFilterFieldsValues,
-      filterFieldsValues,
+      contentTypes,
+      selectedContentType,
+      fields,
+      selectedFields,
+      filters,
+      selectedFilter,
+      filterValues,
+      selectedFilterValues,
     } = this.state;
     return (
       <div>
@@ -353,8 +475,9 @@ class Integration extends Component {
                 selection
                 clearable
                 fluid
-                options={dropdownContentTypes}
+                options={contentTypes}
                 onChange={this.setContentType}
+                value={selectedContentType}
               />
             </Grid.Column>
             <Grid.Column>
@@ -364,10 +487,10 @@ class Integration extends Component {
                 clearable
                 multiple
                 fluid
-                disabled={!contentType}
-                options={dropdownFields}
+                disabled={!selectedContentType}
+                options={fields}
                 onChange={this.setFields}
-                value={localizableFields}
+                value={selectedFields}
               />
             </Grid.Column>
           </Grid.Row>
@@ -381,10 +504,10 @@ class Integration extends Component {
                 selection
                 clearable
                 fluid
-                disabled={!contentType}
-                options={dropdownFilterFields}
-                onChange={this.setFilterField}
-                value={filterField}
+                disabled={!selectedContentType}
+                options={filters}
+                onChange={this.setFilters}
+                value={selectedFilter}
               />
             </Grid.Column>
             <Grid.Column>
@@ -395,10 +518,10 @@ class Integration extends Component {
                 fluid
                 multiple
                 search
-                disabled={!filterField}
-                options={dropdownFilterFieldsValues}
-                onChange={this.setFilterFieldValues}
-                value={filterFieldsValues}
+                disabled={!selectedFilter}
+                options={filterValues}
+                onChange={this.setFilterValues}
+                value={selectedFilterValues}
               />
             </Grid.Column>
           </Grid.Row>
@@ -408,9 +531,9 @@ class Integration extends Component {
                 color="teal"
                 fluid
                 disabled={
-                  !contentType ||
-                  localizableFields.length === 0 ||
-                  (filterField && filterFieldsValues.length === 0)
+                  !selectedContentType ||
+                  selectedFields.length === 0 ||
+                  (!!selectedFilter && selectedFilterValues.length === 0)
                 }
                 onClick={this.handleExport}
               >
@@ -429,7 +552,7 @@ class Integration extends Component {
   };
 
   import = () => {
-    const { translation, dropdownLocales, locale } = this.state;
+    const { translation, locales, selectedLocale } = this.state;
     return (
       <div>
         <Header as="h2" style={{ marginTop: "45px" }}>
@@ -440,7 +563,8 @@ class Integration extends Component {
             placeholder="Select the language you want to import"
             selection
             clearable
-            options={dropdownLocales}
+            value={selectedLocale}
+            options={locales}
             onChange={this.setLocale}
           />
           <br />
@@ -452,7 +576,7 @@ class Integration extends Component {
           />
           <Button
             color="teal"
-            disabled={!translation || !locale}
+            disabled={!translation || !selectedLocale}
             fluid
             onClick={this.submitForm}
           >
