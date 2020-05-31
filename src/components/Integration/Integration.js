@@ -169,6 +169,16 @@ class Integration extends Component {
       const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
       WindowUtils.setCookie(key, value, expires);
     });
+    this.setState({
+      contentTypes: [],
+      selectedContentType: "",
+      fields: [],
+      selectedFields: [],
+      filters: [],
+      selectedFilter: "",
+      filterValues: [],
+      selectedFilterValues: [],
+    });
     if (value) {
       console.log(value);
       this.managementClient
@@ -220,10 +230,10 @@ class Integration extends Component {
       selectedFilterValues: [],
     });
     if (value) {
-      const { selectedSpace, spaceObject, selectedEnvironment } = this.state;
+      const { selectedSpace, spaceObject } = this.state;
       spaceObject.getEnvironment(value).then((environment) => {
         this.setState({ environmentObject: environment });
-        this.getContentTypesAndLocales(selectedSpace, selectedEnvironment);
+        this.getContentTypesAndLocales(selectedSpace, value);
       });
     }
   };
