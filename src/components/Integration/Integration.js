@@ -70,9 +70,10 @@ class Integration extends Component {
       contentTypes: [],
       selectedContentType: "",
       fields: [],
-      filters: [],
       selectedFields: [],
+      filters: [],
       selectedFilter: "",
+      filterValues: [],
       selectedFilterValues: [],
     });
   };
@@ -208,13 +209,22 @@ class Integration extends Component {
       const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
       WindowUtils.setCookie(key, value, expires);
     });
+    this.setState({
+      contentTypes: [],
+      selectedContentType: "",
+      fields: [],
+      selectedFields: [],
+      filters: [],
+      selectedFilter: "",
+      filterValues: [],
+      selectedFilterValues: [],
+    });
     if (value) {
-      const { spaceObject } = this.state;
-      spaceObject
-        .getEnvironment(value)
-        .then((environment) =>
-          this.setState({ environmentObject: environment })
-        );
+      const { selectedSpace, spaceObject, selectedEnvironment } = this.state;
+      spaceObject.getEnvironment(value).then((environment) => {
+        this.setState({ environmentObject: environment });
+        this.getContentTypesAndLocales(selectedSpace, selectedEnvironment);
+      });
     }
   };
 
@@ -285,7 +295,7 @@ class Integration extends Component {
     this.setState({ filters: dropdownCategories });
   };
 
-  setFilters = (e, { value }) => {
+  setFilter = (e, { value }) => {
     const { selectedContentType } = this.state;
     this.setState({ selectedFilter: value });
     if (value) {
@@ -304,9 +314,12 @@ class Integration extends Component {
     const fieldValues = entries.items.map(
       (entry) => entry.fields[chosenField] || null
     );
+    console.log(fieldValues);
     const fieldValuesArray = fieldValues.map((entry) => {
       if (entry) {
-        return entry["en-US"];
+        if (entry["en-US"]) {
+          return entry["en-US"];
+        }
       }
       return "";
     });
@@ -458,6 +471,7 @@ class Integration extends Component {
       selectedFilter,
       filterValues,
       selectedFilterValues,
+      selectedEnvironment,
     } = this.state;
     return (
       <div>
@@ -478,6 +492,7 @@ class Integration extends Component {
                 options={contentTypes}
                 onChange={this.setContentType}
                 value={selectedContentType}
+                disabled={!selectedEnvironment}
               />
             </Grid.Column>
             <Grid.Column>
@@ -506,7 +521,7 @@ class Integration extends Component {
                 fluid
                 disabled={!selectedContentType}
                 options={filters}
-                onChange={this.setFilters}
+                onChange={this.setFilter}
                 value={selectedFilter}
               />
             </Grid.Column>
