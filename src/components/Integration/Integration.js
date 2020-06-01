@@ -17,7 +17,6 @@ class Integration extends Component {
     this.state = {
       translation: "",
       sourceText: "",
-      entriesForExport: [],
       // basic states
       spaces: [],
       selectedSpace: "",
@@ -37,13 +36,13 @@ class Integration extends Component {
       selectedFilterValues: [],
       // locales
       locales: [],
-      selectedLocale: "",
+      targetLocale: "",
+      sourceLocale: "",
       // modals
       openAuthModal: true,
       openSourceTextModal: false,
       //
     };
-    this.localizableArray = [];
   }
 
   componentDidMount() {
@@ -290,6 +289,10 @@ class Integration extends Component {
     this.setState({ selectedFields: value });
   };
 
+  setSourceLocale = (e, { value }) => {
+    this.setState({ sourceLocale: value });
+  };
+
   // EXPORT FILTERS
 
   getFilters = async (contentType) => {
@@ -316,7 +319,7 @@ class Integration extends Component {
   };
 
   getFilterValues = async (chosenContentType, chosenField) => {
-    const { environmentObject } = this.state;
+    const { environmentObject, sourceLocale } = this.state;
     const entries = await environmentObject.getEntries({
       content_type: chosenContentType,
     });
@@ -324,11 +327,10 @@ class Integration extends Component {
     const fieldValues = entries.items.map(
       (entry) => entry.fields[chosenField] || null
     );
-    console.log(fieldValues);
     const fieldValuesArray = fieldValues.map((entry) => {
       if (entry) {
-        if (entry["en-US"]) {
-          return entry["en-US"];
+        if (entry[sourceLocale]) {
+          return entry[sourceLocale];
         }
       }
       return "";
@@ -363,6 +365,8 @@ class Integration extends Component {
       selectedContentType,
       selectedFilterValues,
       selectedFilter,
+      sourceLocale,
+      selectedFields,
     } = this.state;
     const selectedFilterValuesString = selectedFilterValues.join(",");
     let query;
@@ -373,40 +377,35 @@ class Integration extends Component {
       query = `fields.${selectedFilter}`;
     }
 
+    let fieldsSelector = [];
+    selectedFields.forEach((field) => fieldsSelector.push(`fields.${field}`));
+    fieldsSelector = fieldsSelector.join(",");
+
     const entries = await environmentObject.getEntries({
       content_type: selectedContentType,
+      select: fieldsSelector,
+      locale: sourceLocale,
       [query]: selectedFilterValuesString,
     });
-    // get all of the entry IDs for the entries that match the query
-    const entryIDs = entries.items.map((item) => item.sys.id);
-    this.getEntries(entryIDs);
-    this.setState({ openSourceTextModal: true });
-  };
 
-  getEntries = (entryIDs) => {
-    entryIDs.forEach((id) => this.getIndividualEntry(id));
-  };
+    // keep only the fields and the sys info
+    const localizableEntries = entries.items.map((item) => {
+      const id = item.sys.id;
+      const fields = item.fields;
+      fields.entryId = id;
+      return fields;
+    });
 
-  getIndividualEntry = async (id) => {
-    const { environmentObject, selectedFields } = this.state;
-    // get the Contentful entry object based on the id
-    const entry = await environmentObject.getEntry(id);
-    // out of the fields in that entry, only keep in the ones selected by the user
-    const localizableEntry = Object.filter(entry.fields, ([key, value]) =>
-      selectedFields.includes(key)
-    );
-    // add the id in this new entry object
-    localizableEntry.entryId = id;
-    this.localizableArray.push(localizableEntry);
-    this.setState({ entriesForExport: this.localizableArray });
+    console.log(localizableEntries);
+
     this.setState({
-      sourceText: JSON.stringify(this.state.entriesForExport),
+      sourceText: JSON.stringify(localizableEntries),
+      openSourceTextModal: true,
     });
   };
 
   handleCloseModal = () => {
     this.setState({ openSourceTextModal: false, sourceText: "" });
-    this.localizableArray = [];
   };
 
   // IMPORT
@@ -427,8 +426,8 @@ class Integration extends Component {
       });
   };
 
-  setLocale = (e, { value }) => {
-    this.setState({ selectedLocale: value });
+  setTargetLocale = (e, { value }) => {
+    this.setState({ targetLocale: value });
   };
 
   setTranslation = (e) => {
@@ -436,7 +435,7 @@ class Integration extends Component {
   };
 
   submitForm = () => {
-    const { translation, environmentObject, selectedLocale } = this.state;
+    const { translation, environmentObject, targetLocale } = this.state;
     const parsedTranslation = JSON.parse(translation);
 
     parsedTranslation.forEach((entryItem) => {
@@ -450,12 +449,10 @@ class Integration extends Component {
           keys.forEach((key) => {
             // If the translation is different to the source text
             if (
-              entry.fields[key][selectedLocale] !==
-              entryItem[key][selectedLocale]
+              entry.fields[key][targetLocale] !== entryItem[key][targetLocale]
             ) {
               // Update the source text
-              entry.fields[key][selectedLocale] =
-                entryItem[key][selectedLocale];
+              entry.fields[key][targetLocale] = entryItem[key][targetLocale];
             }
           });
           entry.update();
@@ -466,7 +463,7 @@ class Integration extends Component {
         });
     });
 
-    this.setState({ translation: "", selectedLocale: "" });
+    this.setState({ translation: "", targetLocale: "" });
   };
 
   export = () => {
@@ -482,17 +479,30 @@ class Integration extends Component {
       filterValues,
       selectedFilterValues,
       selectedEnvironment,
+      locales,
+      sourceLocale,
     } = this.state;
     return (
       <div>
         {this.displayAuthDetails()}
         <Header as="h2">Export</Header>
-        <Grid columns={2}>
+        <Grid columns={3}>
           <p style={{ marginTop: "20px", marginBottom: "0" }}>
             1. Select export options
           </p>
 
           <Grid.Row>
+            <Grid.Column>
+              <Dropdown
+                placeholder="Select the source language"
+                selection
+                clearable
+                fluid
+                value={sourceLocale}
+                options={locales}
+                onChange={this.setSourceLocale}
+              />
+            </Grid.Column>
             <Grid.Column>
               <Dropdown
                 placeholder="Select the content type"
@@ -577,7 +587,7 @@ class Integration extends Component {
   };
 
   import = () => {
-    const { translation, locales, selectedLocale } = this.state;
+    const { translation, locales, targetLocale } = this.state;
     return (
       <div>
         <Header as="h2" style={{ marginTop: "45px" }}>
@@ -585,12 +595,12 @@ class Integration extends Component {
         </Header>
         <Form>
           <Dropdown
-            placeholder="Select the language you want to import"
+            placeholder="Select the target language"
             selection
             clearable
-            value={selectedLocale}
+            value={targetLocale}
             options={locales}
-            onChange={this.setLocale}
+            onChange={this.setTargetLocale}
           />
           <br />
           <br />
@@ -601,7 +611,7 @@ class Integration extends Component {
           />
           <Button
             color="teal"
-            disabled={!translation || !selectedLocale}
+            disabled={!translation || !targetLocale}
             fluid
             onClick={this.submitForm}
           >
