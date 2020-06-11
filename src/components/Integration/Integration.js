@@ -581,6 +581,7 @@ class Integration extends Component {
       targetLocale,
       openImportLogModal,
       importLog,
+      selectedEnvironment,
     } = this.state;
 
     return (
@@ -590,6 +591,7 @@ class Integration extends Component {
         targetLocale={targetLocale}
         openImportLogModal={openImportLogModal}
         importLog={importLog}
+        selectedEnvironment={selectedEnvironment}
         // functions
         setTargetLocale={this.setTargetLocale}
         submitForm={this.submitForm}

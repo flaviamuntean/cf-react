@@ -10,6 +10,7 @@ class Import extends Component {
     targetLocale: PropTypes.string.isRequired,
     openImportLogModal: PropTypes.bool.isRequired,
     importLog: PropTypes.string.isRequired,
+    selectedEnvironment: PropTypes.string.isRequired,
     // functions
     setTargetLocale: PropTypes.func.isRequired,
     submitForm: PropTypes.func.isRequired,
@@ -25,6 +26,7 @@ class Import extends Component {
       targetLocale,
       openImportLogModal,
       importLog,
+      selectedEnvironment,
       // functions from Integration
       setTargetLocale,
       submitForm,
@@ -55,7 +57,7 @@ class Import extends Component {
           />
           <Button
             color="teal"
-            disabled={!translation || !targetLocale}
+            disabled={!translation || !targetLocale || !selectedEnvironment}
             fluid
             onClick={submitForm}
           >
