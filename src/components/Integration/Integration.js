@@ -1,10 +1,10 @@
 import React, { Component } from "react";
-import { Form, Header, Dropdown, Grid, Button } from "semantic-ui-react";
-import SourceTextModal from "../SourceTextModal/SourceTextModal";
+import { Form, Header, Dropdown, Button } from "semantic-ui-react";
 import ImportLogModal from "../ImportLogModal/ImportLogModal";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
+import Export from "../Export/Export";
 
 import { createClient } from "contentful-management";
 
@@ -532,126 +532,6 @@ class Integration extends Component {
     this.setState({ openImportLogModal: false, importlog: "" });
   };
 
-  export = () => {
-    const {
-      openSourceTextModal,
-      sourceText,
-      contentTypes,
-      selectedContentType,
-      fields,
-      selectedFields,
-      filters,
-      selectedFilter,
-      filterValues,
-      selectedFilterValues,
-      selectedEnvironment,
-      locales,
-      sourceLocale,
-    } = this.state;
-    return (
-      <div>
-        {this.displayAuthDetails()}
-        <Header as="h2">Export</Header>
-        <Grid columns={3}>
-          <p style={{ marginTop: "20px", marginBottom: "0" }}>
-            1. Select export options
-          </p>
-
-          <Grid.Row>
-            <Grid.Column>
-              <Dropdown
-                placeholder="Select the source language"
-                selection
-                clearable
-                fluid
-                value={sourceLocale}
-                options={locales}
-                onChange={this.setSourceLocale}
-              />
-            </Grid.Column>
-            <Grid.Column>
-              <Dropdown
-                placeholder="Select the content type"
-                selection
-                clearable
-                fluid
-                options={contentTypes}
-                onChange={this.setContentType}
-                value={selectedContentType}
-                disabled={!selectedEnvironment || !sourceLocale}
-              />
-            </Grid.Column>
-            <Grid.Column>
-              <Dropdown
-                placeholder="Select the localizable fields you want to export"
-                selection
-                clearable
-                multiple
-                fluid
-                disabled={!selectedContentType}
-                options={fields}
-                onChange={this.setFields}
-                value={selectedFields}
-              />
-            </Grid.Column>
-          </Grid.Row>
-          <p style={{ marginTop: "10px", marginBottom: "0" }}>
-            2. Include optional filters
-          </p>
-          <Grid.Row>
-            <Grid.Column>
-              <Dropdown
-                placeholder="Filter by field..."
-                selection
-                clearable
-                fluid
-                disabled={!selectedContentType}
-                options={filters}
-                onChange={this.setFilter}
-                value={selectedFilter}
-              />
-            </Grid.Column>
-            <Grid.Column>
-              <Dropdown
-                placeholder="...with the value of"
-                selection
-                clearable
-                fluid
-                multiple
-                search
-                disabled={!selectedFilter}
-                options={filterValues}
-                onChange={this.setFilterValues}
-                value={selectedFilterValues}
-              />
-            </Grid.Column>
-          </Grid.Row>
-          <Grid.Row columns={1}>
-            <Grid.Column>
-              <Button
-                color="teal"
-                fluid
-                disabled={
-                  !selectedContentType ||
-                  selectedFields.length === 0 ||
-                  (!!selectedFilter && selectedFilterValues.length === 0)
-                }
-                onClick={this.handleExport}
-              >
-                Export
-              </Button>
-            </Grid.Column>
-          </Grid.Row>
-        </Grid>
-        <SourceTextModal
-          open={openSourceTextModal}
-          sourceText={sourceText}
-          handleCloseModal={this.handleCloseSourceTextModal}
-        />
-      </div>
-    );
-  };
-
   import = () => {
     const {
       translation,
@@ -699,9 +579,53 @@ class Integration extends Component {
     );
   };
 
+  export = () => {
+    const {
+      openSourceTextModal,
+      sourceText,
+      contentTypes,
+      selectedContentType,
+      fields,
+      selectedFields,
+      filters,
+      selectedFilter,
+      filterValues,
+      selectedFilterValues,
+      selectedEnvironment,
+      locales,
+      sourceLocale,
+    } = this.state;
+
+    return (
+      <Export
+        openSourceTextModal={openSourceTextModal}
+        sourceText={sourceText}
+        contentTypes={contentTypes}
+        selectedContentType={selectedContentType}
+        fields={fields}
+        selectedFields={selectedFields}
+        filters={filters}
+        selectedFilter={selectedFilter}
+        filterValues={filterValues}
+        selectedFilterValues={selectedFilterValues}
+        selectedEnvironment={selectedEnvironment}
+        locales={locales}
+        sourceLocale={sourceLocale}
+        setSourceLocale={this.setSourceLocale}
+        setContentType={this.setContentType}
+        setFields={this.setFields}
+        setFilter={this.setFilter}
+        setFilterValues={this.setFilterValues}
+        handleExport={this.handleExport}
+        handleCloseSourceTextModal={this.handleCloseSourceTextModal}
+      />
+    );
+  };
+
   render() {
     return (
       <div>
+        {this.displayAuthDetails()}
         {this.export()}
         {this.import()}
       </div>
