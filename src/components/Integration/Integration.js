@@ -171,6 +171,8 @@ class Integration extends Component {
       WindowUtils.setCookie(key, value, expires);
     });
     this.setState({
+      selectedEnvironment: "",
+      sourceLocale: "",
       contentTypes: [],
       selectedContentType: "",
       fields: [],
@@ -185,7 +187,6 @@ class Integration extends Component {
       this.managementClient
         .getSpace(value)
         .then((space) => this.setState({ spaceObject: space }));
-      this.setState({ selectedEnvironment: "" });
       const key = `environment`;
       // 5 days from the current time
       const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
@@ -258,18 +259,19 @@ class Integration extends Component {
   };
 
   setContentType = (e, { value }) => {
-    this.setState({ selectedContentType: value });
+    // Set the content type, but remove the valuses for all the following dropdowns
+    this.setState({
+      selectedContentType: value,
+      fields: [],
+      selectedFields: [],
+      filters: [],
+      selectedFilter: "",
+      selectedFilterValues: [],
+    });
+
     if (value) {
       this.getFields(value);
       this.getFilters(value);
-    } else {
-      this.setState({
-        fields: [],
-        filters: [],
-        selectedFields: [],
-        selectedFilter: "",
-        selectedFilterValues: [],
-      });
     }
   };
 
@@ -312,11 +314,14 @@ class Integration extends Component {
 
   setFilter = (e, { value }) => {
     const { selectedContentType } = this.state;
-    this.setState({ selectedFilter: value });
+    // Set the value of the filter, but remove any values that were previously selected for this filter
+    this.setState({
+      selectedFilter: value,
+      selectedFilterValues: [],
+    });
+
     if (value) {
       this.getFilterValues(selectedContentType, value);
-    } else {
-      this.setState({ selectedFilterValues: [] });
     }
   };
 
@@ -573,7 +578,7 @@ class Integration extends Component {
                 options={contentTypes}
                 onChange={this.setContentType}
                 value={selectedContentType}
-                disabled={!selectedEnvironment}
+                disabled={!selectedEnvironment || !sourceLocale}
               />
             </Grid.Column>
             <Grid.Column>
