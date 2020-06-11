@@ -1,10 +1,9 @@
 import React, { Component } from "react";
-import { Form, Header, Dropdown, Button } from "semantic-ui-react";
-import ImportLogModal from "../ImportLogModal/ImportLogModal";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
 import Export from "../Export/Export";
+import Import from "../Import/Import";
 
 import { createClient } from "contentful-management";
 
@@ -17,7 +16,7 @@ class Integration extends Component {
     this.state = {
       translation: "",
       sourceText: "",
-      importlog: "",
+      importLog: "",
       // basic states
       spaces: [],
       selectedSpace: "",
@@ -487,29 +486,29 @@ class Integration extends Component {
               console.log(`Entry ${entryItem.entryId} updated.`);
               updatedIds.push(entryItem.entryId);
               console.log(updatedIds);
-              const importlog = `Entries updated: ${updatedIds.join(
+              const importLog = `Entries updated: ${updatedIds.join(
                 ", "
               )}. Entries failed: ${failedIds.join(", ")}`;
-              this.setState({ importlog, openImportLogModal: true });
+              this.setState({ importLog, openImportLogModal: true });
             })
             .catch((e) => {
               console.log(e);
               failedIds.push(entryItem.entryId);
               console.log(failedIds);
-              const importlog = `Entries updated: ${updatedIds.join(
+              const importLog = `Entries updated: ${updatedIds.join(
                 ", "
               )}. Entries failed: ${failedIds.join(", ")}`;
-              this.setState({ importlog, openImportLogModal: true });
+              this.setState({ importLog, openImportLogModal: true });
             });
         })
         .catch((e) => {
           console.log(e);
           failedIds.push(entryItem.entryId);
           console.log(failedIds);
-          const importlog = `Entries updated: ${updatedIds.join(
+          const importLog = `Entries updated: ${updatedIds.join(
             ", "
           )}. Entries failed: ${failedIds.join(", ")}`;
-          this.setState({ importlog, openImportLogModal: true });
+          this.setState({ importLog, openImportLogModal: true });
         });
     });
 
@@ -523,60 +522,13 @@ class Integration extends Component {
     if (parsedTranslation) {
       this.importContent(parsedTranslation);
     } else {
-      const importlog = "Invalid json file. Import failed.";
-      this.setState({ importlog, openImportLogModal: true });
+      const importLog = "Invalid json file. Import failed.";
+      this.setState({ importLog, openImportLogModal: true });
     }
   };
 
   handleCloseImportLogModal = () => {
-    this.setState({ openImportLogModal: false, importlog: "" });
-  };
-
-  import = () => {
-    const {
-      translation,
-      locales,
-      targetLocale,
-      openImportLogModal,
-      importlog,
-    } = this.state;
-    return (
-      <div>
-        <Header as="h2" style={{ marginTop: "45px" }}>
-          Import
-        </Header>
-        <Form>
-          <Dropdown
-            placeholder="Select the target language"
-            selection
-            clearable
-            value={targetLocale}
-            options={locales}
-            onChange={this.setTargetLocale}
-          />
-          <br />
-          <br />
-          <Form.TextArea
-            placeholder="Paste here the translated json content..."
-            value={translation}
-            onChange={(e) => this.setTranslation(e)}
-          />
-          <Button
-            color="teal"
-            disabled={!translation || !targetLocale}
-            fluid
-            onClick={this.submitForm}
-          >
-            Import
-          </Button>
-        </Form>
-        <ImportLogModal
-          open={openImportLogModal}
-          content={importlog}
-          handleCloseModal={this.handleCloseImportLogModal}
-        />
-      </div>
-    );
+    this.setState({ openImportLogModal: false, importLog: "" });
   };
 
   export = () => {
@@ -618,6 +570,31 @@ class Integration extends Component {
         setFilterValues={this.setFilterValues}
         handleExport={this.handleExport}
         handleCloseSourceTextModal={this.handleCloseSourceTextModal}
+      />
+    );
+  };
+
+  import = () => {
+    const {
+      translation,
+      locales,
+      targetLocale,
+      openImportLogModal,
+      importLog,
+    } = this.state;
+
+    return (
+      <Import
+        translation={translation}
+        locales={locales}
+        targetLocale={targetLocale}
+        openImportLogModal={openImportLogModal}
+        importLog={importLog}
+        // functions
+        setTargetLocale={this.setTargetLocale}
+        submitForm={this.submitForm}
+        handleCloseImportLogModal={this.handleCloseImportLogModal}
+        setTranslation={this.setTranslation}
       />
     );
   };
