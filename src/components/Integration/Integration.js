@@ -1,10 +1,10 @@
 import React, { Component } from "react";
 import { Form, Header, Dropdown, Grid, Button } from "semantic-ui-react";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
+import ImportLogModal from "../ImportLogModal/ImportLogModal";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
-// import Export from "../Export/Export";
 
 import { createClient } from "contentful-management";
 
@@ -17,6 +17,7 @@ class Integration extends Component {
     this.state = {
       translation: "",
       sourceText: "",
+      importlog: "",
       // basic states
       spaces: [],
       selectedSpace: "",
@@ -41,6 +42,7 @@ class Integration extends Component {
       // modals
       openAuthModal: true,
       openSourceTextModal: false,
+      openImportLogModal: false,
       //
     };
   }
@@ -200,7 +202,7 @@ class Integration extends Component {
       .then((environments) => {
         const dropdownCategories = environments.items.map((environment) => ({
           key: environment.sys.id,
-          text: environment.name,
+          text: environment.sys.id,
           value: environment.sys.id,
         }));
         this.setState({ environments: dropdownCategories });
@@ -389,12 +391,17 @@ class Integration extends Component {
     });
 
     // keep only the fields and the sys info
-    const localizableEntries = entries.items.map((item) => {
-      const id = item.sys.id;
-      const fields = item.fields;
-      fields.entryId = id;
-      return fields;
-    });
+    const localizableEntries = entries.items
+      .map((item) => {
+        const id = item.sys.id;
+        const fields = item.fields;
+        if (fields) {
+          fields.entryId = id;
+          return fields;
+        }
+        return null;
+      })
+      .filter((entry) => entry !== null);
 
     console.log(localizableEntries);
 
@@ -404,7 +411,7 @@ class Integration extends Component {
     });
   };
 
-  handleCloseModal = () => {
+  handleCloseSourceTextModal = () => {
     this.setState({ openSourceTextModal: false, sourceText: "" });
   };
 
@@ -434,9 +441,23 @@ class Integration extends Component {
     this.setState({ translation: e.target.value });
   };
 
-  submitForm = () => {
-    const { translation, environmentObject, targetLocale } = this.state;
-    const parsedTranslation = JSON.parse(translation);
+  safelyParseJSON(json) {
+    let parsed;
+
+    try {
+      parsed = JSON.parse(json);
+    } catch (e) {
+      console.log("error!!");
+    }
+
+    return parsed; // Returns undefined if json content is invalid and cannot be parsed
+  }
+
+  importContent = (parsedTranslation) => {
+    const { environmentObject, targetLocale } = this.state;
+
+    let updatedIds = [];
+    let failedIds = [];
 
     parsedTranslation.forEach((entryItem) => {
       let keys = Object.keys(entryItem);
@@ -455,15 +476,55 @@ class Integration extends Component {
               entry.fields[key][targetLocale] = entryItem[key][targetLocale];
             }
           });
-          entry.update();
+          entry
+            .update()
+            .then(() => {
+              console.log(`Entry ${entryItem.entryId} updated.`);
+              updatedIds.push(entryItem.entryId);
+              console.log(updatedIds);
+              const importlog = `Entries updated: ${updatedIds.join(
+                ", "
+              )}. Entries failed: ${failedIds.join(", ")}`;
+              this.setState({ importlog, openImportLogModal: true });
+            })
+            .catch((e) => {
+              console.log(e);
+              failedIds.push(entryItem.entryId);
+              console.log(failedIds);
+              const importlog = `Entries updated: ${updatedIds.join(
+                ", "
+              )}. Entries failed: ${failedIds.join(", ")}`;
+              this.setState({ importlog, openImportLogModal: true });
+            });
         })
-        .then(console.log(`Entry ${entryItem.entryId} updated.`))
         .catch((e) => {
           console.log(e);
+          failedIds.push(entryItem.entryId);
+          console.log(failedIds);
+          const importlog = `Entries updated: ${updatedIds.join(
+            ", "
+          )}. Entries failed: ${failedIds.join(", ")}`;
+          this.setState({ importlog, openImportLogModal: true });
         });
     });
 
     this.setState({ translation: "", targetLocale: "" });
+  };
+
+  submitForm = () => {
+    const { translation } = this.state;
+    const parsedTranslation = this.safelyParseJSON(translation);
+
+    if (parsedTranslation) {
+      this.importContent(parsedTranslation);
+    } else {
+      const importlog = "Invalid json file. Import failed.";
+      this.setState({ importlog, openImportLogModal: true });
+    }
+  };
+
+  handleCloseImportLogModal = () => {
+    this.setState({ openImportLogModal: false, importlog: "" });
   };
 
   export = () => {
@@ -580,14 +641,20 @@ class Integration extends Component {
         <SourceTextModal
           open={openSourceTextModal}
           sourceText={sourceText}
-          handleCloseModal={this.handleCloseModal}
+          handleCloseModal={this.handleCloseSourceTextModal}
         />
       </div>
     );
   };
 
   import = () => {
-    const { translation, locales, targetLocale } = this.state;
+    const {
+      translation,
+      locales,
+      targetLocale,
+      openImportLogModal,
+      importlog,
+    } = this.state;
     return (
       <div>
         <Header as="h2" style={{ marginTop: "45px" }}>
@@ -618,6 +685,11 @@ class Integration extends Component {
             Import
           </Button>
         </Form>
+        <ImportLogModal
+          open={openImportLogModal}
+          content={importlog}
+          handleCloseModal={this.handleCloseImportLogModal}
+        />
       </div>
     );
   };
