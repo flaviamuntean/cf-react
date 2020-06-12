@@ -3,6 +3,7 @@ import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
 import Export from "../Export/Export";
+import ExportDefault from "../ExportDefault/ExportDefault";
 import Import from "../Import/Import";
 
 import { createClient } from "contentful-management";
@@ -531,6 +532,85 @@ class Integration extends Component {
     this.setState({ openImportLogModal: false, importLog: "" });
   };
 
+  handleExportDefault = () => {
+    // get all content types
+    const { contentTypes, environmentObject } = this.state;
+    let allContentForExport = [];
+    // map them into an array of only the content type ids
+    const contentTypesArray = contentTypes.map(
+      (contentType) => contentType.value
+    );
+    // for each content type
+    contentTypesArray.forEach(async (contentType) => {
+      // get the localizable fields
+      const response = await (
+        await environmentObject.getContentType(contentType)
+      ).fields;
+      const localizable = response.filter((field) => field.localized === true);
+      console.log(localizable);
+
+      // if the content type has any localizable fields
+      if (localizable.length > 0) {
+        // combine the ids of the localizable fields into the query needed for export
+        const localizableFields = localizable.map((field) => field.id);
+
+        let fieldsForExport = [];
+        localizableFields.forEach((field) =>
+          fieldsForExport.push(`fields.${field}`)
+        );
+        fieldsForExport = fieldsForExport.join(",");
+
+        // export all entries for the content type, but only the localizable fields
+        const entries = await environmentObject.getEntries({
+          content_type: contentType,
+          select: fieldsForExport,
+        });
+
+        // keep only the fields and the sys info
+        const localizableEntries = entries.items
+          .map((item) => {
+            const id = item.sys.id;
+            const fields = item.fields;
+            if (fields) {
+              fields.entryId = id;
+              return fields;
+            }
+            return null;
+          })
+          .filter((entry) => entry !== null);
+
+        console.log(localizableEntries);
+        allContentForExport.push(localizableEntries);
+        console.log(allContentForExport.flat());
+        this.setState({
+          sourceText: JSON.stringify(allContentForExport.flat()),
+          openSourceTextModal: true,
+        });
+      }
+    });
+  };
+
+  exportDefault = () => {
+    const {
+      openSourceTextModal,
+      sourceText,
+      selectedEnvironment,
+      contentTypes,
+    } = this.state;
+
+    return (
+      <ExportDefault
+        openSourceTextModal={openSourceTextModal}
+        sourceText={sourceText}
+        selectedEnvironment={selectedEnvironment}
+        contentTypes={contentTypes}
+        // functions
+        handleExportDefault={this.handleExportDefault}
+        handleCloseSourceTextModal={this.handleCloseSourceTextModal}
+      />
+    );
+  };
+
   export = () => {
     const {
       openSourceTextModal,
@@ -605,6 +685,7 @@ class Integration extends Component {
     return (
       <div>
         {this.displayAuthDetails()}
+        {this.exportDefault()}
         {this.export()}
         {this.import()}
       </div>
