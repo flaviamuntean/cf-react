@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import PropTypes from "prop-types";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
@@ -13,12 +14,14 @@ Object.filter = (obj, predicate) =>
   Object.fromEntries(Object.entries(obj).filter(predicate));
 
 class Integration extends Component {
+  static propTypes = {
+    accessToken: PropTypes.string.isRequired,
+    openAuthModal: PropTypes.bool.isRequired,
+  };
+
   constructor(props) {
     super(props);
     this.state = {
-      translation: "",
-      sourceText: "",
-      importLog: "",
       // basic states
       spaces: [],
       selectedSpace: "",
@@ -41,10 +44,11 @@ class Integration extends Component {
       targetLocale: "",
       sourceLocale: "",
       // modals
-      openAuthModal: true,
       openSourceTextModal: false,
       openImportLogModal: false,
-      //
+      translation: "",
+      sourceText: "",
+      importLog: "",
     };
   }
 
@@ -79,30 +83,32 @@ class Integration extends Component {
   };
 
   getInitialIntegrationDetails = () => {
-    this.managementClient = createClient({
-      accessToken: this.props.accessToken,
-    });
-    this.getSpaces();
-    const cookieData = CookieUtils.readUserStateFromCookies();
-    const { space, environment } = cookieData;
+    if (this.props.accessToken) {
+      this.managementClient = createClient({
+        accessToken: this.props.accessToken,
+      });
+      this.getSpaces();
+      const cookieData = CookieUtils.readUserStateFromCookies();
+      const { space, environment } = cookieData;
 
-    this.setState({ selectedSpace: space, selectedEnvironment: environment });
+      this.setState({ selectedSpace: space, selectedEnvironment: environment });
 
-    if (space) {
-      this.managementClient
-        .getSpace(space)
-        .then((space) => this.setState({ spaceObject: space }));
-      this.getEnvironments(space);
-    }
+      if (space) {
+        this.managementClient
+          .getSpace(space)
+          .then((space) => this.setState({ spaceObject: space }));
+        this.getEnvironments(space);
+      }
 
-    if (space && environment) {
-      this.managementClient
-        .getSpace(space)
-        .then((space) => space.getEnvironment(environment))
-        .then((environment) =>
-          this.setState({ environmentObject: environment })
-        );
-      this.getContentTypesAndLocales(space, environment);
+      if (space && environment) {
+        this.managementClient
+          .getSpace(space)
+          .then((space) => space.getEnvironment(environment))
+          .then((environment) =>
+            this.setState({ environmentObject: environment })
+          );
+        this.getContentTypesAndLocales(space, environment);
+      }
     }
   };
 
