@@ -19,7 +19,7 @@ class App extends Component {
     super();
     this.state = {
       accessToken: "",
-      submittedAccessToken: "testtoken",
+      submittedAccessToken: "",
       open: true,
     };
   }
