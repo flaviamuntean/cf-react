@@ -1,29 +1,22 @@
 import React, { Component } from "react";
 import { Header, Grid, Button } from "semantic-ui-react";
-import SourceTextModal from "../SourceTextModal/SourceTextModal";
 import PropTypes from "prop-types";
 
 class ExportDefault extends Component {
   static propTypes = {
     // states from Integration
-    openSourceTextModal: PropTypes.bool.isRequired,
-    sourceText: PropTypes.string.isRequired,
     selectedEnvironment: PropTypes.string.isRequired,
     contentTypes: PropTypes.array.isRequired,
     // functions from Integration
     handleExportDefault: PropTypes.func.isRequired,
-    handleCloseSourceTextModal: PropTypes.func.isRequired,
   };
 
   export = () => {
     const {
-      openSourceTextModal,
-      sourceText,
       selectedEnvironment,
       contentTypes,
       // functions
       handleExportDefault,
-      handleCloseSourceTextModal,
     } = this.props;
     return (
       <div>
@@ -44,11 +37,6 @@ class ExportDefault extends Component {
             </Grid.Column>
           </Grid.Row>
         </Grid>
-        <SourceTextModal
-          open={openSourceTextModal}
-          sourceText={sourceText}
-          handleCloseModal={handleCloseSourceTextModal}
-        />
       </div>
     );
   };

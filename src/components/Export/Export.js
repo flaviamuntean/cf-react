@@ -1,13 +1,10 @@
 import React, { Component } from "react";
 import { Header, Dropdown, Grid, Button } from "semantic-ui-react";
-import SourceTextModal from "../SourceTextModal/SourceTextModal";
 import PropTypes from "prop-types";
 
 class Export extends Component {
   static propTypes = {
     // states from Integration
-    openSourceTextModal: PropTypes.bool.isRequired,
-    sourceText: PropTypes.string.isRequired,
     contentTypes: PropTypes.array.isRequired,
     selectedContentType: PropTypes.string.isRequired,
     fields: PropTypes.array.isRequired,
@@ -26,13 +23,10 @@ class Export extends Component {
     setFilter: PropTypes.func.isRequired,
     setFilterValues: PropTypes.func.isRequired,
     handleExport: PropTypes.func.isRequired,
-    handleCloseSourceTextModal: PropTypes.func.isRequired,
   };
 
   export = () => {
     const {
-      openSourceTextModal,
-      sourceText,
       contentTypes,
       selectedContentType,
       fields,
@@ -51,7 +45,6 @@ class Export extends Component {
       setFilter,
       setFilterValues,
       handleExport,
-      handleCloseSourceTextModal,
     } = this.props;
     return (
       <div>
@@ -149,11 +142,6 @@ class Export extends Component {
             </Grid.Column>
           </Grid.Row>
         </Grid>
-        <SourceTextModal
-          open={openSourceTextModal}
-          sourceText={sourceText}
-          handleCloseModal={handleCloseSourceTextModal}
-        />
       </div>
     );
   };

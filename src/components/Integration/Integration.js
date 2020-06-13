@@ -5,6 +5,7 @@ import WindowUtils from "../../utils/WindowUtils";
 import Export from "../Export/Export";
 import ExportDefault from "../ExportDefault/ExportDefault";
 import Import from "../Import/Import";
+import SourceTextModal from "../SourceTextModal/SourceTextModal";
 
 import { createClient } from "contentful-management";
 
@@ -591,30 +592,20 @@ class Integration extends Component {
   };
 
   exportDefault = () => {
-    const {
-      openSourceTextModal,
-      sourceText,
-      selectedEnvironment,
-      contentTypes,
-    } = this.state;
+    const { selectedEnvironment, contentTypes } = this.state;
 
     return (
       <ExportDefault
-        openSourceTextModal={openSourceTextModal}
-        sourceText={sourceText}
         selectedEnvironment={selectedEnvironment}
         contentTypes={contentTypes}
         // functions
         handleExportDefault={this.handleExportDefault}
-        handleCloseSourceTextModal={this.handleCloseSourceTextModal}
       />
     );
   };
 
   export = () => {
     const {
-      openSourceTextModal,
-      sourceText,
       contentTypes,
       selectedContentType,
       fields,
@@ -630,8 +621,6 @@ class Integration extends Component {
 
     return (
       <Export
-        openSourceTextModal={openSourceTextModal}
-        sourceText={sourceText}
         contentTypes={contentTypes}
         selectedContentType={selectedContentType}
         fields={fields}
@@ -649,7 +638,6 @@ class Integration extends Component {
         setFilter={this.setFilter}
         setFilterValues={this.setFilterValues}
         handleExport={this.handleExport}
-        handleCloseSourceTextModal={this.handleCloseSourceTextModal}
       />
     );
   };
@@ -682,11 +670,18 @@ class Integration extends Component {
   };
 
   render() {
+    const { openSourceTextModal, sourceText } = this.state;
+
     return (
       <div>
         {this.displayAuthDetails()}
         {this.exportDefault()}
         {this.export()}
+        <SourceTextModal
+          open={openSourceTextModal}
+          sourceText={sourceText}
+          handleCloseModal={this.handleCloseSourceTextModal}
+        />
         {this.import()}
       </div>
     );
