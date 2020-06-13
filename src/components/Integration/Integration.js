@@ -330,6 +330,7 @@ class Integration extends Component {
     const { environmentObject, sourceLocale } = this.state;
     const entries = await environmentObject.getEntries({
       content_type: chosenContentType,
+      limit: 1000,
     });
 
     const fieldValues = entries.items.map(
@@ -394,6 +395,7 @@ class Integration extends Component {
       select: fieldsSelector,
       locale: sourceLocale,
       [query]: selectedFilterValuesString,
+      limit: 1000,
     });
 
     // keep only the fields and the sys info
@@ -565,6 +567,7 @@ class Integration extends Component {
         const entries = await environmentObject.getEntries({
           content_type: contentType,
           select: fieldsForExport,
+          limit: 1000,
         });
 
         // keep only the fields and the sys info
