@@ -53,10 +53,8 @@ class Integration extends Component {
   }
 
   componentDidUpdate = (prevProps, prevState) => {
-    if (
-      prevProps.spaceID !== this.props.spaceID ||
-      prevProps.accessToken !== this.props.accessToken
-    ) {
+    if (prevProps.accessToken !== this.props.accessToken) {
+      this.setInitState();
       this.getInitialIntegrationDetails();
     }
   };
