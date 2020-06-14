@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Header, Dropdown, Grid, Button } from "semantic-ui-react";
+import { Header, Dropdown, Grid, Button, Segment } from "semantic-ui-react";
 import PropTypes from "prop-types";
 
 class Export extends Component {
@@ -47,10 +47,8 @@ class Export extends Component {
       handleExport,
     } = this.props;
     return (
-      <div>
-        <Header as="h2" style={{ marginTop: "45px" }}>
-          Export
-        </Header>
+      <Segment color="grey">
+        <Header as="h2">Export With Options</Header>
         <Grid columns={3}>
           <p style={{ marginTop: "20px", marginBottom: "0" }}>
             1. Select export options
@@ -74,6 +72,7 @@ class Export extends Component {
                 selection
                 clearable
                 fluid
+                search
                 options={contentTypes}
                 onChange={setContentType}
                 value={selectedContentType}
@@ -142,7 +141,7 @@ class Export extends Component {
             </Grid.Column>
           </Grid.Row>
         </Grid>
-      </div>
+      </Segment>
     );
   };
 

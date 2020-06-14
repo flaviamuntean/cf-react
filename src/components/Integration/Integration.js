@@ -7,8 +7,9 @@ import Export from "../Export/Export";
 import ExportDefault from "../ExportDefault/ExportDefault";
 import Import from "../Import/Import";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
-
 import { createClient } from "contentful-management";
+
+import "./Integration.css";
 
 Object.filter = (obj, predicate) =>
   Object.fromEntries(Object.entries(obj).filter(predicate));
@@ -49,6 +50,7 @@ class Integration extends Component {
       translation: "",
       sourceText: "",
       importLog: "",
+      numberSourceEntries: 0,
       // export default
       allFieldsForFiltering: [],
       selectedAllFieldsFilter: "",
@@ -83,6 +85,9 @@ class Integration extends Component {
       selectedFilter: "",
       filterValues: [],
       selectedFilterValues: [],
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     });
   };
 
@@ -190,6 +195,9 @@ class Integration extends Component {
       selectedFilter: "",
       filterValues: [],
       selectedFilterValues: [],
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     });
     if (value) {
       this.managementClient
@@ -238,6 +246,9 @@ class Integration extends Component {
       selectedFilter: "",
       filterValues: [],
       selectedFilterValues: [],
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     });
     if (value) {
       const { selectedSpace, spaceObject } = this.state;
@@ -421,14 +432,19 @@ class Integration extends Component {
       })
       .filter((entry) => entry !== null);
 
-    this.setState({
+    this.setState((prevState, props) => ({
       sourceText: JSON.stringify(localizableEntries),
       openSourceTextModal: true,
-    });
+      numberSourceEntries: prevState.numberSourceEntries + entries.total,
+    }));
   };
 
   handleCloseSourceTextModal = () => {
-    this.setState({ openSourceTextModal: false, sourceText: "" });
+    this.setState({
+      openSourceTextModal: false,
+      sourceText: "",
+      numberSourceEntries: 0,
+    });
   };
 
   // IMPORT
@@ -498,18 +514,22 @@ class Integration extends Component {
               console.log(`Entry ${entryItem.entryId} updated.`);
               updatedIds.push(entryItem.entryId);
               console.log(updatedIds);
-              const importLog = `Entries updated: ${updatedIds.join(
-                ", "
-              )}. Entries failed: ${failedIds.join(", ")}`;
+              const importLog = `Entries updated (${
+                updatedIds.length
+              }): ${updatedIds.join(", ")}. Entries failed (${
+                failedIds.length
+              }): ${failedIds.join(", ")}`;
               this.setState({ importLog, openImportLogModal: true });
             })
             .catch((e) => {
               console.log(e);
               failedIds.push(entryItem.entryId);
               console.log(failedIds);
-              const importLog = `Entries updated: ${updatedIds.join(
-                ", "
-              )}. Entries failed: ${failedIds.join(", ")}`;
+              const importLog = `Entries updated (${
+                updatedIds.length
+              }): ${updatedIds.join(", ")}. Entries failed (${
+                failedIds.length
+              }): ${failedIds.join(", ")}`;
               this.setState({ importLog, openImportLogModal: true });
             });
         })
@@ -517,9 +537,11 @@ class Integration extends Component {
           console.log(e);
           failedIds.push(entryItem.entryId);
           console.log(failedIds);
-          const importLog = `Entries updated: ${updatedIds.join(
-            ", "
-          )}. Entries failed: ${failedIds.join(", ")}`;
+          const importLog = `Entries updated (${
+            updatedIds.length
+          }): ${updatedIds.join(", ")}. Entries failed (${
+            failedIds.length
+          }): ${failedIds.join(", ")}`;
           this.setState({ importLog, openImportLogModal: true });
         });
     });
@@ -605,10 +627,13 @@ class Integration extends Component {
               .filter((entry) => entry !== null);
 
             allContentForExport.push(localizableEntries);
-            this.setState({
+
+            this.setState((prevState, props) => ({
               sourceText: JSON.stringify(allContentForExport.flat()),
               openSourceTextModal: true,
-            });
+              numberSourceEntries:
+                prevState.numberSourceEntries + entries.total,
+            }));
           })
           .catch((error) => console.log(error));
       }
@@ -751,7 +776,7 @@ class Integration extends Component {
   };
 
   render() {
-    const { openSourceTextModal, sourceText } = this.state;
+    const { openSourceTextModal, sourceText, numberSourceEntries } = this.state;
 
     return (
       <div>
@@ -761,6 +786,7 @@ class Integration extends Component {
         <SourceTextModal
           open={openSourceTextModal}
           sourceText={sourceText}
+          numberSourceEntries={numberSourceEntries}
           handleCloseModal={this.handleCloseSourceTextModal}
         />
         {this.import()}

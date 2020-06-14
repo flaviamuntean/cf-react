@@ -63,7 +63,7 @@ class App extends Component {
     const { open, accessToken, submittedAccessToken } = this.state;
 
     return (
-      <Container style={{ marginTop: "60px", marginBottom: "60px" }}>
+      <Container style={{ marginTop: "30px", marginBottom: "40px" }}>
         <Grid>
           <Grid.Row>
             <Grid.Column>

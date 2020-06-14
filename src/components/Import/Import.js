@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import { Form, Header, Dropdown, Button } from "semantic-ui-react";
+import { Form, Header, Dropdown, Button, Segment } from "semantic-ui-react";
 import ImportLogModal from "../ImportLogModal/ImportLogModal";
 
 class Import extends Component {
@@ -35,10 +35,8 @@ class Import extends Component {
     } = this.props;
 
     return (
-      <div>
-        <Header as="h2" style={{ marginTop: "45px" }}>
-          Import
-        </Header>
+      <Segment color="grey">
+        <Header as="h2">Import Translation</Header>
         <Form>
           <Dropdown
             placeholder="Select the target language"
@@ -69,7 +67,7 @@ class Import extends Component {
           content={importLog}
           handleCloseModal={handleCloseImportLogModal}
         />
-      </div>
+      </Segment>
     );
   };
 
