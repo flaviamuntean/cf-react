@@ -7,8 +7,9 @@ import Export from "../Export/Export";
 import ExportDefault from "../ExportDefault/ExportDefault";
 import Import from "../Import/Import";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
-
 import { createClient } from "contentful-management";
+
+import "./Integration.css";
 
 Object.filter = (obj, predicate) =>
   Object.fromEntries(Object.entries(obj).filter(predicate));
@@ -16,7 +17,7 @@ Object.filter = (obj, predicate) =>
 class Integration extends Component {
   static propTypes = {
     accessToken: PropTypes.string.isRequired,
-    openAuthModal: PropTypes.bool.isRequired,
+    openAuthModal: PropTypes.func.isRequired,
   };
 
   constructor(props) {
@@ -49,6 +50,11 @@ class Integration extends Component {
       translation: "",
       sourceText: "",
       importLog: "",
+      numberSourceEntries: 0,
+      // export default
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     };
   }
 
@@ -79,6 +85,9 @@ class Integration extends Component {
       selectedFilter: "",
       filterValues: [],
       selectedFilterValues: [],
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     });
   };
 
@@ -186,9 +195,11 @@ class Integration extends Component {
       selectedFilter: "",
       filterValues: [],
       selectedFilterValues: [],
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     });
     if (value) {
-      console.log(value);
       this.managementClient
         .getSpace(value)
         .then((space) => this.setState({ spaceObject: space }));
@@ -235,6 +246,9 @@ class Integration extends Component {
       selectedFilter: "",
       filterValues: [],
       selectedFilterValues: [],
+      allFieldsForFiltering: [],
+      selectedAllFieldsFilter: "",
+      allFieldsValues: "",
     });
     if (value) {
       const { selectedSpace, spaceObject } = this.state;
@@ -256,7 +270,10 @@ class Integration extends Component {
           text: contentType.name,
           value: contentType.sys.id,
         }));
-        this.setState({ contentTypes: dropdownCategories });
+        this.setState(
+          { contentTypes: dropdownCategories },
+          this.getAllFieldsForAllContentTypes
+        );
       })
       .catch((e) => {
         console.log(e);
@@ -415,16 +432,19 @@ class Integration extends Component {
       })
       .filter((entry) => entry !== null);
 
-    console.log(localizableEntries);
-
-    this.setState({
+    this.setState((prevState, props) => ({
       sourceText: JSON.stringify(localizableEntries),
       openSourceTextModal: true,
-    });
+      numberSourceEntries: prevState.numberSourceEntries + entries.total,
+    }));
   };
 
   handleCloseSourceTextModal = () => {
-    this.setState({ openSourceTextModal: false, sourceText: "" });
+    this.setState({
+      openSourceTextModal: false,
+      sourceText: "",
+      numberSourceEntries: 0,
+    });
   };
 
   // IMPORT
@@ -494,18 +514,22 @@ class Integration extends Component {
               console.log(`Entry ${entryItem.entryId} updated.`);
               updatedIds.push(entryItem.entryId);
               console.log(updatedIds);
-              const importLog = `Entries updated: ${updatedIds.join(
-                ", "
-              )}. Entries failed: ${failedIds.join(", ")}`;
+              const importLog = `Entries updated (${
+                updatedIds.length
+              }): ${updatedIds.join(", ")}. Entries failed (${
+                failedIds.length
+              }): ${failedIds.join(", ")}`;
               this.setState({ importLog, openImportLogModal: true });
             })
             .catch((e) => {
               console.log(e);
               failedIds.push(entryItem.entryId);
               console.log(failedIds);
-              const importLog = `Entries updated: ${updatedIds.join(
-                ", "
-              )}. Entries failed: ${failedIds.join(", ")}`;
+              const importLog = `Entries updated (${
+                updatedIds.length
+              }): ${updatedIds.join(", ")}. Entries failed (${
+                failedIds.length
+              }): ${failedIds.join(", ")}`;
               this.setState({ importLog, openImportLogModal: true });
             });
         })
@@ -513,9 +537,11 @@ class Integration extends Component {
           console.log(e);
           failedIds.push(entryItem.entryId);
           console.log(failedIds);
-          const importLog = `Entries updated: ${updatedIds.join(
-            ", "
-          )}. Entries failed: ${failedIds.join(", ")}`;
+          const importLog = `Entries updated (${
+            updatedIds.length
+          }): ${updatedIds.join(", ")}. Entries failed (${
+            failedIds.length
+          }): ${failedIds.join(", ")}`;
           this.setState({ importLog, openImportLogModal: true });
         });
     });
@@ -540,10 +566,15 @@ class Integration extends Component {
   };
 
   handleExportDefault = () => {
-    // get all content types
-    const { contentTypes, environmentObject } = this.state;
+    const {
+      contentTypes,
+      environmentObject,
+      allFieldsValues,
+      selectedAllFieldsFilter,
+    } = this.state;
+
     let allContentForExport = [];
-    // map them into an array of only the content type ids
+    // map content types into an array of only the content type ids
     const contentTypesArray = contentTypes.map(
       (contentType) => contentType.value
     );
@@ -554,7 +585,6 @@ class Integration extends Component {
         await environmentObject.getContentType(contentType)
       ).fields;
       const localizable = response.filter((field) => field.localized === true);
-      console.log(localizable);
 
       // if the content type has any localizable fields
       if (localizable.length > 0) {
@@ -565,41 +595,104 @@ class Integration extends Component {
         localizableFields.forEach((field) =>
           fieldsForExport.push(`fields.${field}`)
         );
-        fieldsForExport = fieldsForExport.join(",");
 
-        // export all entries for the content type, but only the localizable fields
-        const entries = await environmentObject.getEntries({
-          content_type: contentType,
-          select: fieldsForExport,
-          limit: 1000,
-        });
+        let query;
 
-        // keep only the fields and the sys info
-        const localizableEntries = entries.items
-          .map((item) => {
-            const id = item.sys.id;
-            const fields = item.fields;
-            if (fields) {
-              fields.entryId = id;
-              return fields;
-            }
-            return null;
+        if (allFieldsValues.includes(",")) {
+          query = `fields.${selectedAllFieldsFilter}[in]`;
+        } else {
+          query = `fields.${selectedAllFieldsFilter}`;
+        }
+
+        // export all entries for the content type, but only the localizable fields + filters
+        environmentObject
+          .getEntries({
+            content_type: contentType,
+            select: fieldsForExport,
+            [query]: allFieldsValues,
+            limit: 1000,
           })
-          .filter((entry) => entry !== null);
+          .then((entries) => {
+            // keep only the fields and the sys info
+            const localizableEntries = entries.items
+              .map((item) => {
+                const id = item.sys.id;
+                const fields = item.fields;
+                if (fields) {
+                  fields.entryId = id;
+                  return fields;
+                }
+                return null;
+              })
+              .filter((entry) => entry !== null);
 
-        console.log(localizableEntries);
-        allContentForExport.push(localizableEntries);
-        console.log(allContentForExport.flat());
-        this.setState({
-          sourceText: JSON.stringify(allContentForExport.flat()),
-          openSourceTextModal: true,
-        });
+            allContentForExport.push(localizableEntries);
+
+            this.setState((prevState, props) => ({
+              sourceText: JSON.stringify(allContentForExport.flat()),
+              openSourceTextModal: true,
+              numberSourceEntries:
+                prevState.numberSourceEntries + entries.total,
+            }));
+          })
+          .catch((error) => console.log(error));
       }
     });
   };
 
+  getAllFieldsForAllContentTypes = () => {
+    // get all content types
+    const { contentTypes, environmentObject } = this.state;
+    // map them into an array of only the content type ids
+    const contentTypesArray = contentTypes.map(
+      (contentType) => contentType.value
+    );
+    // for each content type
+    const allFields = contentTypesArray.map((contentType) =>
+      // get the localizable fields
+      environmentObject
+        .getContentType(contentType)
+        .then((cType) => cType.fields)
+        .catch(console.error)
+    );
+
+    Promise.all(allFields).then((values) => {
+      const response = values.flat();
+
+      const fieldIDs = response.map((field) => field.id);
+      const uniqueFilterIDs = fieldIDs.filter(
+        (v, i) => fieldIDs.indexOf(v) === i
+      );
+
+      const dropdownCategories = uniqueFilterIDs.map((id) => ({
+        key: id,
+        text: id,
+        value: id,
+      }));
+
+      this.setState({ allFieldsForFiltering: dropdownCategories });
+    });
+  };
+
+  setAllFieldsFilter = (e, { value }) => {
+    // Set the value of the filter, but remove any values that were previously added for this filter
+    this.setState({
+      selectedAllFieldsFilter: value,
+      allFieldsValues: "",
+    });
+  };
+
+  setAllFieldsValues = (e, { value }) =>
+    this.setState({ allFieldsValues: value });
+
   exportDefault = () => {
-    const { selectedEnvironment, contentTypes } = this.state;
+    const {
+      selectedEnvironment,
+      contentTypes,
+      allFieldsForFiltering,
+      selectedAllFieldsFilter,
+      allFieldsValues,
+    } = this.state;
 
     return (
       <ExportDefault
@@ -607,6 +700,12 @@ class Integration extends Component {
         contentTypes={contentTypes}
         // functions
         handleExportDefault={this.handleExportDefault}
+        // new
+        filters={allFieldsForFiltering}
+        setFilter={this.setAllFieldsFilter}
+        selectedFilter={selectedAllFieldsFilter}
+        allFieldsValues={allFieldsValues}
+        setAllFieldsValues={this.setAllFieldsValues}
       />
     );
   };
@@ -677,7 +776,7 @@ class Integration extends Component {
   };
 
   render() {
-    const { openSourceTextModal, sourceText } = this.state;
+    const { openSourceTextModal, sourceText, numberSourceEntries } = this.state;
 
     return (
       <div>
@@ -687,6 +786,7 @@ class Integration extends Component {
         <SourceTextModal
           open={openSourceTextModal}
           sourceText={sourceText}
+          numberSourceEntries={numberSourceEntries}
           handleCloseModal={this.handleCloseSourceTextModal}
         />
         {this.import()}

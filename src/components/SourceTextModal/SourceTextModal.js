@@ -14,12 +14,19 @@ class SourceTextModal extends Component {
   };
 
   render() {
-    const { open, sourceText, handleCloseModal } = this.props;
+    const {
+      open,
+      sourceText,
+      handleCloseModal,
+      numberSourceEntries,
+    } = this.props;
     return (
       <Modal open={open} closeIcon onClose={handleCloseModal}>
         <Modal.Content scrolling>
           <Modal.Description>
-            <Header>Source text</Header>
+            <Header>
+              Source text (number of entries: {numberSourceEntries})
+            </Header>
             <p>{sourceText}</p>
           </Modal.Description>
         </Modal.Content>
