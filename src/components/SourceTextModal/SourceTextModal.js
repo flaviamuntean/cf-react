@@ -20,6 +20,10 @@ class SourceTextModal extends Component {
       handleCloseModal,
       numberSourceEntries,
     } = this.props;
+
+    const data =
+      "data:text/json;charset=utf-8," + encodeURIComponent(sourceText);
+
     return (
       <Modal open={open} closeIcon onClose={handleCloseModal}>
         <Modal.Content scrolling>
@@ -27,10 +31,16 @@ class SourceTextModal extends Component {
             <Header>
               Source text (number of entries: {numberSourceEntries})
             </Header>
-            <p>{sourceText}</p>
+            <p style={{ whiteSpace: "pre" }}>{sourceText}</p>
           </Modal.Description>
         </Modal.Content>
         <Modal.Actions>
+          <a href={data} download="source.json" style={{ color: "white" }}>
+            <Button primary>
+              <Icon name="download" />
+              Download JSON
+            </Button>
+          </a>
           <CopyToClipboard text={sourceText}>
             <Button
               primary
