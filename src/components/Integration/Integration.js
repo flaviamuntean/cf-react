@@ -433,7 +433,7 @@ class Integration extends Component {
       .filter((entry) => entry !== null);
 
     this.setState((prevState, props) => ({
-      sourceText: JSON.stringify(localizableEntries),
+      sourceText: JSON.stringify(localizableEntries, null, 2),
       openSourceTextModal: true,
       numberSourceEntries: prevState.numberSourceEntries + entries.total,
     }));
@@ -629,7 +629,7 @@ class Integration extends Component {
             allContentForExport.push(localizableEntries);
 
             this.setState((prevState, props) => ({
-              sourceText: JSON.stringify(allContentForExport.flat()),
+              sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
               openSourceTextModal: true,
               numberSourceEntries:
                 prevState.numberSourceEntries + entries.total,
