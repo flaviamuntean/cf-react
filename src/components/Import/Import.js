@@ -10,6 +10,7 @@ class Import extends Component {
     targetLocale: PropTypes.string.isRequired,
     openImportLogModal: PropTypes.bool.isRequired,
     importLog: PropTypes.string.isRequired,
+    errorLog: PropTypes.string.isRequired,
     selectedEnvironment: PropTypes.string.isRequired,
     // functions
     setTargetLocale: PropTypes.func.isRequired,
@@ -26,6 +27,7 @@ class Import extends Component {
       targetLocale,
       openImportLogModal,
       importLog,
+      errorLog,
       selectedEnvironment,
       // functions from Integration
       setTargetLocale,
@@ -65,6 +67,7 @@ class Import extends Component {
         <ImportLogModal
           open={openImportLogModal}
           content={importLog}
+          errorLog={errorLog}
           handleCloseModal={handleCloseImportLogModal}
         />
       </Segment>
