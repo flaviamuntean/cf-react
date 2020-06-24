@@ -50,6 +50,7 @@ class Integration extends Component {
       translation: "",
       sourceText: "",
       importLog: "",
+      errorLog: "",
       numberSourceEntries: 0,
       // export default
       allFieldsForFiltering: [],
@@ -516,18 +517,23 @@ class Integration extends Component {
               console.log(updatedIds);
               const importLog = `Entries updated (${
                 updatedIds.length
-              }): ${updatedIds.join(", ")}. Entries failed (${
+              }): ${updatedIds.join(", ")}\n\nEntries failed (${
                 failedIds.length
               }): ${failedIds.join(", ")}`;
               this.setState({ importLog, openImportLogModal: true });
             })
             .catch((e) => {
               console.log(e);
+              this.setState((st) => ({
+                errorLog:
+                  st.errorLog +
+                  `${e}\n\n=========================================================================================\n\n`,
+              }));
               failedIds.push(entryItem.entryId);
               console.log(failedIds);
               const importLog = `Entries updated (${
                 updatedIds.length
-              }): ${updatedIds.join(", ")}. Entries failed (${
+              }): ${updatedIds.join(", ")}\n\nEntries failed (${
                 failedIds.length
               }): ${failedIds.join(", ")}`;
               this.setState({ importLog, openImportLogModal: true });
@@ -535,11 +541,16 @@ class Integration extends Component {
         })
         .catch((e) => {
           console.log(e);
+          this.setState((st) => ({
+            errorLog:
+              st.errorLog +
+              `${e}\n\n=========================================================================================\n\n`,
+          }));
           failedIds.push(entryItem.entryId);
           console.log(failedIds);
           const importLog = `Entries updated (${
             updatedIds.length
-          }): ${updatedIds.join(", ")}. Entries failed (${
+          }): ${updatedIds.join(", ")}\n\nEntries failed (${
             failedIds.length
           }): ${failedIds.join(", ")}`;
           this.setState({ importLog, openImportLogModal: true });
@@ -562,7 +573,7 @@ class Integration extends Component {
   };
 
   handleCloseImportLogModal = () => {
-    this.setState({ openImportLogModal: false, importLog: "" });
+    this.setState({ openImportLogModal: false, importLog: "", errorLog: "" });
   };
 
   handleExportDefault = () => {
@@ -755,6 +766,7 @@ class Integration extends Component {
       targetLocale,
       openImportLogModal,
       importLog,
+      errorLog,
       selectedEnvironment,
     } = this.state;
 
@@ -765,6 +777,7 @@ class Integration extends Component {
         targetLocale={targetLocale}
         openImportLogModal={openImportLogModal}
         importLog={importLog}
+        errorLog={errorLog}
         selectedEnvironment={selectedEnvironment}
         // functions
         setTargetLocale={this.setTargetLocale}
