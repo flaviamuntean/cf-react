@@ -56,6 +56,24 @@ class Integration extends Component {
       allFieldsForFiltering: [],
       selectedAllFieldsFilter: "",
       allFieldsValues: "",
+      // import upload
+      uploadedJsonContent: {},
+      uploadedFiles: [],
+    };
+
+    this.fileReader = new FileReader();
+    this.fileReader.onload = (event) => {
+      try {
+        this.setState({ uploadedJsonContent: JSON.parse(event.target.result) });
+      } catch (error) {
+        const importLog = "Invalid json file. Upload failed.";
+        this.setState({
+          importLog,
+          openImportLogModal: true,
+          uploadedFiles: [],
+          uploadedJsonContent: {},
+        });
+      }
     };
   }
 
@@ -470,6 +488,16 @@ class Integration extends Component {
     this.setState({ targetLocale: value });
   };
 
+  uploadTargetFiles = (files) => {
+    // Read the last uploaded file. To be changed to a method that allows iterrating over multiple files.
+    if (files.length) {
+      this.setState({ uploadedFiles: files });
+      this.fileReader.readAsText(files[files.length - 1]);
+    } else {
+      this.setState({ uploadedFiles: [], uploadedJsonContent: {} });
+    }
+  };
+
   setTranslation = (e) => {
     this.setState({ translation: e.target.value });
   };
@@ -557,14 +585,24 @@ class Integration extends Component {
         });
     });
 
-    this.setState({ translation: "", targetLocale: "" });
+    this.setState({
+      translation: "",
+      targetLocale: "",
+      uploadedJsonContent: {},
+      uploadedFiles: [],
+    });
   };
 
   submitForm = () => {
-    const { translation } = this.state;
+    const { translation, uploadedJsonContent } = this.state;
     const parsedTranslation = this.safelyParseJSON(translation);
 
-    if (parsedTranslation) {
+    if (
+      !!uploadedJsonContent &&
+      Object.keys(uploadedJsonContent).length !== 0
+    ) {
+      this.importContent(uploadedJsonContent);
+    } else if (parsedTranslation) {
       this.importContent(parsedTranslation);
     } else {
       const importLog = "Invalid json file. Import failed.";
@@ -768,6 +806,7 @@ class Integration extends Component {
       importLog,
       errorLog,
       selectedEnvironment,
+      uploadedFiles,
     } = this.state;
 
     return (
@@ -779,11 +818,13 @@ class Integration extends Component {
         importLog={importLog}
         errorLog={errorLog}
         selectedEnvironment={selectedEnvironment}
+        uploadedFiles={uploadedFiles}
         // functions
         setTargetLocale={this.setTargetLocale}
         submitForm={this.submitForm}
         handleCloseImportLogModal={this.handleCloseImportLogModal}
         setTranslation={this.setTranslation}
+        handleUploadTargetFiles={this.uploadTargetFiles}
       />
     );
   };

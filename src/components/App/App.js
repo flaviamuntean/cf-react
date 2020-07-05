@@ -79,8 +79,8 @@ class App extends Component {
                     <Header>Contentful Authentication</Header>
                     <Form>
                       <Form.Input
-                        placeholder="CDM Access Token"
-                        label="CDM Access Token"
+                        placeholder="CMA Access Token"
+                        label="CMA Access Token"
                         value={accessToken}
                         onChange={this.handleTokenChange}
                       />

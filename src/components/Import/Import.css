@@ -1,0 +1,22 @@
+.file-box-row {
+  border-top: 1px solid #e1e4e8;
+  padding: 16px;
+  margin-top: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-box-row:first-of-type {
+  border-top-color: transparent;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.files-dropzone {
+  vertical-align: middle;
+  text-align: center;
+  padding: 60px;
+  border: 1px dashed #d3d3d3;
+  cursor: pointer;
+}
