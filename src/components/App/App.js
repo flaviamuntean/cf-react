@@ -79,7 +79,8 @@ class App extends Component {
                     <Header>Contentful Authentication</Header>
                     <Form>
                       <Form.Input
-                        placeholder="CMA Access Token"
+                        required
+                        placeholder="CFPAT-DLu478d5fd7Vb8f3E874gDbfe3es8U3ef57"
                         label="CMA Access Token"
                         value={accessToken}
                         onChange={this.handleTokenChange}
