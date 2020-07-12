@@ -741,12 +741,17 @@ class Integration extends Component {
       allFieldsForFiltering,
       selectedAllFieldsFilter,
       allFieldsValues,
+      locales,
+      sourceLocale,
     } = this.state;
 
     return (
       <ExportDefault
         selectedEnvironment={selectedEnvironment}
         contentTypes={contentTypes}
+        locales={locales}
+        sourceLocale={sourceLocale}
+        setSourceLocale={this.setSourceLocale}
         // functions
         handleExportDefault={this.handleExportDefault}
         // new
