@@ -41,8 +41,8 @@ class App extends Component {
   handleTokenChange = (e, { value }) =>
     this.setState({ accessToken: value }, () => {
       const key = `access_token`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      // 180 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
       WindowUtils.setCookie(key, value, expires);
     });
 
