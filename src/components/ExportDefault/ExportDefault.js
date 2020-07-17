@@ -34,11 +34,25 @@ class ExportDefault extends Component {
       selectedFilter,
       allFieldsValues,
       setAllFieldsValues,
+      sourceLocale,
+      locales,
+      setSourceLocale,
     } = this.props;
 
     if (filters.length > 0) {
       return (
-        <Grid.Row columns={2}>
+        <Grid.Row columns={3}>
+          <Grid.Column>
+            <Dropdown
+              placeholder="Select the source language"
+              selection
+              clearable
+              fluid
+              value={sourceLocale}
+              options={locales}
+              onChange={setSourceLocale}
+            />
+          </Grid.Column>
           <Grid.Column>
             <Dropdown
               placeholder="Filter by field..."
@@ -54,7 +68,7 @@ class ExportDefault extends Component {
           <Grid.Column>
             <Input
               fluid
-              placeholder="...with the value of (separate multiple values using a comma)"
+              placeholder="...with the value of (separate values with a comma)"
               disabled={!selectedFilter}
               value={allFieldsValues}
               onChange={setAllFieldsValues}
@@ -89,7 +103,7 @@ class ExportDefault extends Component {
     if (filters.length > 0) {
       return (
         <p style={{ marginTop: "20px", marginBottom: "0" }}>
-          Include optional filters
+          Select the source language and include optional filters
         </p>
       );
     }
@@ -99,6 +113,7 @@ class ExportDefault extends Component {
     const {
       selectedEnvironment,
       contentTypes,
+      sourceLocale,
       // functions
       handleExportDefault,
       // filters,
@@ -118,6 +133,7 @@ class ExportDefault extends Component {
                 color="teal"
                 fluid
                 disabled={
+                  !sourceLocale ||
                   !selectedEnvironment ||
                   contentTypes.length === 0 ||
                   (!!selectedFilter && allFieldsValues.length === 0)
