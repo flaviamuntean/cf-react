@@ -419,6 +419,7 @@ class Integration extends Component {
       sourceLocale,
       selectedFields,
     } = this.state;
+
     const selectedFilterValuesString = selectedFilterValues.join(",");
     let query;
 
@@ -432,43 +433,49 @@ class Integration extends Component {
     selectedFields.forEach((field) => fieldsSelector.push(`fields.${field}`));
     fieldsSelector = fieldsSelector.join(",");
 
-    const entries = await environmentObject.getEntries({
-      content_type: selectedContentType,
-      select: fieldsSelector,
-      locale: sourceLocale,
-      [query]: selectedFilterValuesString,
-      limit: 1000,
-    });
-
-    // keep only the fields and the sys info
-    const localizableEntries = entries.items
-      .map((item) => {
-        const id = item.sys.id;
-        if (item.fields) {
-          const fields = Helpers.filterByLang(
-            item.fields,
-            this.state.sourceLocale
-          );
-
-          if (
-            Object.keys(fields).length === 0 &&
-            fields.constructor === Object
-          ) {
-            return null;
-          } else {
-            fields.entryId = id;
-            return fields;
-          }
-        }
-        return null;
+    environmentObject
+      .getEntries({
+        content_type: selectedContentType,
+        select: fieldsSelector,
+        locale: sourceLocale,
+        [query]: selectedFilterValuesString,
+        limit: 1000,
       })
-      .filter((entry) => entry !== null);
+      .then((entries) => {
+        let numberExportedEntries = 0;
 
-    this.setState((prevState, props) => ({
-      sourceText: JSON.stringify(localizableEntries, null, 2),
-      openSourceTextModal: true,
-      numberSourceEntries: prevState.numberSourceEntries + entries.total,
-    }));
+        // keep only the fields and the sys info
+        const localizableEntries = entries.items
+          .map((item) => {
+            const id = item.sys.id;
+            if (item.fields) {
+              const fields = Helpers.filterByLang(
+                item.fields,
+                this.state.sourceLocale
+              );
+
+              if (
+                Object.keys(fields).length === 0 &&
+                fields.constructor === Object
+              ) {
+                return null;
+              } else {
+                fields.entryId = id;
+                numberExportedEntries++;
+                return fields;
+              }
+            }
+            return null;
+          })
+          .filter((entry) => entry !== null);
+
+        this.setState((prevState, props) => ({
+          sourceText: JSON.stringify(localizableEntries, null, 2),
+          openSourceTextModal: true,
+          numberSourceEntries:
+            prevState.numberSourceEntries + numberExportedEntries,
+        }));
+      });
   };
 
   handleCloseSourceTextModal = () => {
@@ -677,6 +684,8 @@ class Integration extends Component {
           })
           .then((entries) => {
             // keep only the fields and the sys info
+            let numberExportedEntries = 0;
+
             const localizableEntries = entries.items
               .map((item) => {
                 const id = item.sys.id;
@@ -693,6 +702,7 @@ class Integration extends Component {
                     return null;
                   } else {
                     fields.entryId = id;
+                    numberExportedEntries++;
                     return fields;
                   }
                 }
@@ -706,7 +716,7 @@ class Integration extends Component {
               sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
               openSourceTextModal: true,
               numberSourceEntries:
-                prevState.numberSourceEntries + entries.total,
+                prevState.numberSourceEntries + numberExportedEntries,
             }));
           })
           .catch((error) => console.log(error));
