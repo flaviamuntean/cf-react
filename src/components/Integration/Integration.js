@@ -200,8 +200,8 @@ class Integration extends Component {
   handleSpaceSelection = (e, { value }) => {
     this.setState({ selectedSpace: value }, () => {
       const key = `space`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      // 180 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
       WindowUtils.setCookie(key, value, expires);
     });
     this.setState({
@@ -223,9 +223,10 @@ class Integration extends Component {
       this.managementClient
         .getSpace(value)
         .then((space) => this.setState({ spaceObject: space }));
+      // Clear the environment cookie
       const key = `environment`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      // 180 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
       WindowUtils.setCookie(key, "", expires);
       this.getEnvironments(value);
     }
@@ -253,8 +254,8 @@ class Integration extends Component {
   handleEnvironmentSelection = (e, { value }) => {
     this.setState({ selectedEnvironment: value }, () => {
       const key = `environment`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
+      // 180 days from the current time
+      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
       WindowUtils.setCookie(key, value, expires);
     });
     this.setState({

@@ -1,33 +1,7 @@
 import React, { Component } from "react";
 import { Dropdown, Button, Grid, Segment } from "semantic-ui-react";
-import CookieUtils from "../../utils/CookieUtils";
-import WindowUtils from "../../utils/WindowUtils";
 
 class AuthDetails extends Component {
-  constructor() {
-    super();
-    this.state = {
-      environment: "",
-      submittedSpace: "",
-      submittedEnvironment: "",
-    };
-  }
-
-  componentDidMount() {
-    const cookieData = CookieUtils.readUserStateFromCookies();
-    const { environment } = cookieData;
-
-    this.setState({ environment });
-  }
-
-  handleEnvironmentChange = (e, { name, value }) =>
-    this.setState({ [name]: value }, () => {
-      const key = `environment`;
-      // 5 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 5).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
-    });
-
   render() {
     const {
       changeToken,
