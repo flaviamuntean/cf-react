@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
+import Helpers from "../../utils/Helpers";
 import Export from "../Export/Export";
 import ExportDefault from "../ExportDefault/ExportDefault";
 import Import from "../Import/Import";
@@ -442,10 +443,21 @@ class Integration extends Component {
     const localizableEntries = entries.items
       .map((item) => {
         const id = item.sys.id;
-        const fields = item.fields;
-        if (fields) {
-          fields.entryId = id;
-          return fields;
+        if (item.fields) {
+          const fields = Helpers.filterByLang(
+            item.fields,
+            this.state.sourceLocale
+          );
+
+          if (
+            Object.keys(fields).length === 0 &&
+            fields.constructor === Object
+          ) {
+            return null;
+          } else {
+            fields.entryId = id;
+            return fields;
+          }
         }
         return null;
       })
@@ -514,11 +526,24 @@ class Integration extends Component {
     return parsed; // Returns undefined if json content is invalid and cannot be parsed
   }
 
+  writeAndShowImportLog = (updatedIds, failedIds, ignoredIds) => {
+    const importLog = `Entries updated (${
+      updatedIds.length
+    }): ${updatedIds.join(", ")}\n\nEntries failed (${
+      failedIds.length
+    }): ${failedIds.join(", ")}\n\nEntries ignored - no new text (${
+      ignoredIds.length
+    }): ${ignoredIds.join(", ")}`;
+
+    this.setState({ importLog, openImportLogModal: true });
+  };
+
   importContent = (parsedTranslation) => {
     const { environmentObject, targetLocale } = this.state;
 
     let updatedIds = [];
     let failedIds = [];
+    let ignoredIds = [];
 
     parsedTranslation.forEach((entryItem) => {
       let keys = Object.keys(entryItem);
@@ -528,44 +553,38 @@ class Integration extends Component {
       environmentObject
         .getEntry(entryItem.entryId)
         .then((entry) => {
+          let needsUpdating = false;
           keys.forEach((key) => {
             // If the translation is different to the source text
             if (
               entry.fields[key][targetLocale] !== entryItem[key][targetLocale]
             ) {
               // Update the source text
+              needsUpdating = true;
               entry.fields[key][targetLocale] = entryItem[key][targetLocale];
             }
           });
-          entry
-            .update()
-            .then(() => {
-              console.log(`Entry ${entryItem.entryId} updated.`);
-              updatedIds.push(entryItem.entryId);
-              console.log(updatedIds);
-              const importLog = `Entries updated (${
-                updatedIds.length
-              }): ${updatedIds.join(", ")}\n\nEntries failed (${
-                failedIds.length
-              }): ${failedIds.join(", ")}`;
-              this.setState({ importLog, openImportLogModal: true });
-            })
-            .catch((e) => {
-              console.log(e);
-              this.setState((st) => ({
-                errorLog:
-                  st.errorLog +
-                  `${e}\n\n=========================================================================================\n\n`,
-              }));
-              failedIds.push(entryItem.entryId);
-              console.log(failedIds);
-              const importLog = `Entries updated (${
-                updatedIds.length
-              }): ${updatedIds.join(", ")}\n\nEntries failed (${
-                failedIds.length
-              }): ${failedIds.join(", ")}`;
-              this.setState({ importLog, openImportLogModal: true });
-            });
+          if (needsUpdating) {
+            entry
+              .update()
+              .then(() => {
+                updatedIds.push(entryItem.entryId);
+                this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
+              })
+              .catch((e) => {
+                console.log(e);
+                this.setState((st) => ({
+                  errorLog:
+                    st.errorLog +
+                    `${e}\n\n=========================================================================================\n\n`,
+                }));
+                failedIds.push(entryItem.entryId);
+                this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
+              });
+          } else {
+            ignoredIds.push(entryItem.entryId);
+            this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
+          }
         })
         .catch((e) => {
           console.log(e);
@@ -575,13 +594,7 @@ class Integration extends Component {
               `${e}\n\n=========================================================================================\n\n`,
           }));
           failedIds.push(entryItem.entryId);
-          console.log(failedIds);
-          const importLog = `Entries updated (${
-            updatedIds.length
-          }): ${updatedIds.join(", ")}\n\nEntries failed (${
-            failedIds.length
-          }): ${failedIds.join(", ")}`;
-          this.setState({ importLog, openImportLogModal: true });
+          this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
         });
     });
 
@@ -666,10 +679,21 @@ class Integration extends Component {
             const localizableEntries = entries.items
               .map((item) => {
                 const id = item.sys.id;
-                const fields = item.fields;
-                if (fields) {
-                  fields.entryId = id;
-                  return fields;
+                if (item.fields) {
+                  const fields = Helpers.filterByLang(
+                    item.fields,
+                    this.state.sourceLocale
+                  );
+
+                  if (
+                    Object.keys(fields).length === 0 &&
+                    fields.constructor === Object
+                  ) {
+                    return null;
+                  } else {
+                    fields.entryId = id;
+                    return fields;
+                  }
                 }
                 return null;
               })
