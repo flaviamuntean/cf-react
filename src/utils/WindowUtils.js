@@ -23,7 +23,10 @@ export default class WindowUtils {
     );
   };
 
-  static setCookie = (key, value, expires) => {
+  static setCookie = (key, value, daysTillExpiration) => {
+    const expires = new Date(
+      Date.now() + 86400 * 1000 * daysTillExpiration
+    ).toUTCString();
     document.cookie = `${key}=${value};expires=${expires};path=/`;
   };
 }

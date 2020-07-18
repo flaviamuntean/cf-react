@@ -13,9 +13,6 @@ import { createClient } from "contentful-management";
 
 import "./Integration.css";
 
-Object.filter = (obj, predicate) =>
-  Object.fromEntries(Object.entries(obj).filter(predicate));
-
 class Integration extends Component {
   static propTypes = {
     accessToken: PropTypes.string.isRequired,
@@ -206,10 +203,7 @@ class Integration extends Component {
   // Select a space
   handleSpaceSelection = (e, { value }) => {
     this.setState({ selectedSpace: value }, () => {
-      const key = `space`;
-      // 180 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
+      WindowUtils.setCookie(`space`, value, 180);
     });
     this.setState({
       selectedEnvironment: "",
@@ -231,10 +225,7 @@ class Integration extends Component {
         .getSpace(value)
         .then((space) => this.setState({ spaceObject: space }));
       // Clear the environment cookie
-      const key = `environment`;
-      // 180 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
-      WindowUtils.setCookie(key, "", expires);
+      WindowUtils.setCookie(`environment`, "", 180);
       this.getEnvironments(value);
     }
   };
@@ -258,10 +249,7 @@ class Integration extends Component {
   // Select an environment
   handleEnvironmentSelection = (e, { value }) => {
     this.setState({ selectedEnvironment: value }, () => {
-      const key = `environment`;
-      // 180 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
+      WindowUtils.setCookie(`environment`, value, 180);
     });
     this.setState({
       contentTypes: [],
