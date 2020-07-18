@@ -8,6 +8,7 @@ import Export from "../Export/Export";
 import ExportDefault from "../ExportDefault/ExportDefault";
 import Import from "../Import/Import";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
+import ErrorMsg from "../ErrorMsg/ErrorMsg";
 import { createClient } from "contentful-management";
 
 import "./Integration.css";
@@ -60,6 +61,9 @@ class Integration extends Component {
       // import upload
       uploadedJsonContent: {},
       uploadedFiles: [],
+      // errors
+      showErrorMsg: false,
+      errorMsgContent: "",
     };
 
     this.fileReader = new FileReader();
@@ -108,6 +112,8 @@ class Integration extends Component {
       allFieldsForFiltering: [],
       selectedAllFieldsFilter: "",
       allFieldsValues: "",
+      showErrorMsg: false,
+      errorMsgContent: "",
     });
   };
 
@@ -193,6 +199,11 @@ class Integration extends Component {
         console.log(e);
         // Remove all information on spaces and environments if the spaces are not fetched (most likely due to the token being invalid)
         this.setInitState();
+        this.setState({
+          showErrorMsg: true,
+          errorMsgContent:
+            "The access token you entered could not be found or is invalid. Please ensure you have the correct token and try again.",
+        });
       });
   };
 
@@ -870,10 +881,17 @@ class Integration extends Component {
   };
 
   render() {
-    const { openSourceTextModal, sourceText, numberSourceEntries } = this.state;
+    const {
+      openSourceTextModal,
+      sourceText,
+      numberSourceEntries,
+      showErrorMsg,
+      errorMsgContent,
+    } = this.state;
 
     return (
       <div>
+        <ErrorMsg content={errorMsgContent} visible={showErrorMsg} />
         {this.displayAuthDetails()}
         {this.exportDefault()}
         {this.export()}
