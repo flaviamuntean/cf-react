@@ -440,9 +440,9 @@ class Integration extends Component {
       query = `fields.${selectedFilter}`;
     }
 
-    let fieldsSelector = [];
-    selectedFields.forEach((field) => fieldsSelector.push(`fields.${field}`));
-    fieldsSelector = fieldsSelector.join(",");
+    const fieldsSelector = selectedFields
+      .map((field) => `fields.${field}`)
+      .join(",");
 
     environmentObject
       .getEntries({
@@ -672,9 +672,8 @@ class Integration extends Component {
         // combine the ids of the localizable fields into the query needed for export
         const localizableFields = localizable.map((field) => field.id);
 
-        let fieldsForExport = [];
-        localizableFields.forEach((field) =>
-          fieldsForExport.push(`fields.${field}`)
+        const fieldsForExport = localizableFields.map(
+          (field) => `fields.${field}`
         );
 
         let query;
