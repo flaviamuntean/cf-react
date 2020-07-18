@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import isEqual from "lodash/isEqual";
 import PropTypes from "prop-types";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
@@ -513,7 +514,10 @@ class Integration extends Component {
           keys.forEach((key) => {
             // If the translation is different to the source text
             if (
-              entry.fields[key][targetLocale] !== entryItem[key][targetLocale]
+              !isEqual(
+                entry.fields[key][targetLocale],
+                entryItem[key][targetLocale]
+              )
             ) {
               // Update the source text
               needsUpdating = true;
