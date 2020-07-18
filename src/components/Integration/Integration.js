@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import isEqual from "lodash/isEqual";
 import PropTypes from "prop-types";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
@@ -12,9 +13,6 @@ import ErrorMsg from "../ErrorMsg/ErrorMsg";
 import { createClient } from "contentful-management";
 
 import "./Integration.css";
-
-Object.filter = (obj, predicate) =>
-  Object.fromEntries(Object.entries(obj).filter(predicate));
 
 class Integration extends Component {
   static propTypes = {
@@ -188,11 +186,7 @@ class Integration extends Component {
     this.managementClient
       .getSpaces()
       .then((spaces) => {
-        const dropdownCategories = spaces.items.map((space) => ({
-          key: space.sys.id,
-          text: space.name,
-          value: space.sys.id,
-        }));
+        const dropdownCategories = Helpers.generateSpacesDropdown(spaces);
         this.setState({ spaces: dropdownCategories });
       })
       .catch((e) => {
@@ -210,10 +204,7 @@ class Integration extends Component {
   // Select a space
   handleSpaceSelection = (e, { value }) => {
     this.setState({ selectedSpace: value }, () => {
-      const key = `space`;
-      // 180 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
+      WindowUtils.setCookie(`space`, value, 180);
     });
     this.setState({
       selectedEnvironment: "",
@@ -235,10 +226,7 @@ class Integration extends Component {
         .getSpace(value)
         .then((space) => this.setState({ spaceObject: space }));
       // Clear the environment cookie
-      const key = `environment`;
-      // 180 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
-      WindowUtils.setCookie(key, "", expires);
+      WindowUtils.setCookie(`environment`, "", 180);
       this.getEnvironments(value);
     }
   };
@@ -249,11 +237,9 @@ class Integration extends Component {
       .getSpace(space)
       .then((space) => space.getEnvironments())
       .then((environments) => {
-        const dropdownCategories = environments.items.map((environment) => ({
-          key: environment.sys.id,
-          text: environment.sys.id,
-          value: environment.sys.id,
-        }));
+        const dropdownCategories = Helpers.generateEnvironmentsDropdown(
+          environments
+        );
         this.setState({ environments: dropdownCategories });
       })
       .catch((e) => {
@@ -264,10 +250,7 @@ class Integration extends Component {
   // Select an environment
   handleEnvironmentSelection = (e, { value }) => {
     this.setState({ selectedEnvironment: value }, () => {
-      const key = `environment`;
-      // 180 days from the current time
-      const expires = new Date(Date.now() + 86400 * 1000 * 180).toUTCString();
-      WindowUtils.setCookie(key, value, expires);
+      WindowUtils.setCookie(`environment`, value, 180);
     });
     this.setState({
       contentTypes: [],
@@ -296,12 +279,10 @@ class Integration extends Component {
   getContentTypes = (environment) => {
     environment
       .getContentTypes()
-      .then((response) => {
-        const dropdownCategories = response.items.map((contentType) => ({
-          key: contentType.sys.id,
-          text: contentType.name,
-          value: contentType.sys.id,
-        }));
+      .then((contentTypes) => {
+        const dropdownCategories = Helpers.generateContentTypesDropdown(
+          contentTypes
+        );
         this.setState(
           { contentTypes: dropdownCategories },
           this.getAllFieldsForAllContentTypes
@@ -334,12 +315,8 @@ class Integration extends Component {
 
     const response = await (await environmentObject.getContentType(contentType))
       .fields;
-    const selectedFields = response.filter((field) => field.localized === true);
-    const dropdownCategories = selectedFields.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
+    const selectedFields = Helpers.filterByLocalizable(response);
+    const dropdownCategories = Helpers.generateFieldsDropdown(selectedFields);
     this.setState({ fields: dropdownCategories });
   };
 
@@ -358,11 +335,7 @@ class Integration extends Component {
 
     const response = await (await environmentObject.getContentType(contentType))
       .fields;
-    const dropdownCategories = response.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
+    const dropdownCategories = Helpers.generateFiltersDropdown(response);
     this.setState({ filters: dropdownCategories });
   };
 
@@ -386,28 +359,15 @@ class Integration extends Component {
       limit: 1000,
     });
 
-    const fieldValues = entries.items.map(
-      (entry) => entry.fields[chosenField] || null
+    const uniqueFieldValues = Helpers.getUniqueFieldValues(
+      entries,
+      chosenField,
+      sourceLocale
     );
-    const fieldValuesArray = fieldValues.map((entry) => {
-      if (entry) {
-        if (entry[sourceLocale]) {
-          return entry[sourceLocale];
-        }
-      }
-      return "";
-    });
 
-    const uniqueFieldValues = fieldValuesArray
-      .flat()
-      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i)
-      .filter((v) => v !== "");
-
-    const dropdownCategories = uniqueFieldValues.map((value) => ({
-      key: value,
-      text: value,
-      value: value,
-    }));
+    const dropdownCategories = Helpers.generateFilterValuesDropdown(
+      uniqueFieldValues
+    );
     this.setState({ filterValues: dropdownCategories });
   };
 
@@ -432,17 +392,11 @@ class Integration extends Component {
     } = this.state;
 
     const selectedFilterValuesString = selectedFilterValues.join(",");
-    let query;
-
-    if (selectedFilterValues.length > 1) {
-      query = `fields.${selectedFilter}[in]`;
-    } else {
-      query = `fields.${selectedFilter}`;
-    }
-
-    const fieldsSelector = selectedFields
-      .map((field) => `fields.${field}`)
-      .join(",");
+    const query = Helpers.generateExportOptionsApiQuery(
+      selectedFilterValues,
+      selectedFilter
+    );
+    const fieldsSelector = Helpers.generateFieldsSelector(selectedFields);
 
     environmentObject
       .getEntries({
@@ -502,12 +456,8 @@ class Integration extends Component {
   getLocales = (environment) => {
     environment
       .getLocales()
-      .then((response) => {
-        const dropdownCategories = response.items.map((locale) => ({
-          key: locale.sys.id,
-          text: locale.name,
-          value: locale.code,
-        }));
+      .then((locales) => {
+        const dropdownCategories = Helpers.generateLocalesDropdown(locales);
         this.setState({ locales: dropdownCategories });
       })
       .catch((e) => {
@@ -532,18 +482,6 @@ class Integration extends Component {
   setTranslation = (e) => {
     this.setState({ translation: e.target.value });
   };
-
-  safelyParseJSON(json) {
-    let parsed;
-
-    try {
-      parsed = JSON.parse(json);
-    } catch (e) {
-      console.log("error!!");
-    }
-
-    return parsed; // Returns undefined if json content is invalid and cannot be parsed
-  }
 
   writeAndShowImportLog = (updatedIds, failedIds, ignoredIds) => {
     const importLog = `Entries updated (${
@@ -576,7 +514,10 @@ class Integration extends Component {
           keys.forEach((key) => {
             // If the translation is different to the source text
             if (
-              entry.fields[key][targetLocale] !== entryItem[key][targetLocale]
+              !isEqual(
+                entry.fields[key][targetLocale],
+                entryItem[key][targetLocale]
+              )
             ) {
               // Update the source text
               needsUpdating = true;
@@ -627,7 +568,7 @@ class Integration extends Component {
 
   submitForm = () => {
     const { translation, uploadedJsonContent } = this.state;
-    const parsedTranslation = this.safelyParseJSON(translation);
+    const parsedTranslation = Helpers.safelyParseJSON(translation);
 
     if (
       !!uploadedJsonContent &&
@@ -665,7 +606,7 @@ class Integration extends Component {
       const response = await (
         await environmentObject.getContentType(contentType)
       ).fields;
-      const localizable = response.filter((field) => field.localized === true);
+      const localizable = Helpers.filterByLocalizable(response);
 
       // if the content type has any localizable fields
       if (localizable.length > 0) {
@@ -676,13 +617,10 @@ class Integration extends Component {
           (field) => `fields.${field}`
         );
 
-        let query;
-
-        if (allFieldsValues.includes(",")) {
-          query = `fields.${selectedAllFieldsFilter}[in]`;
-        } else {
-          query = `fields.${selectedAllFieldsFilter}`;
-        }
+        const query = Helpers.generateExportDefaultApiQuery(
+          allFieldsValues,
+          selectedAllFieldsFilter
+        );
 
         // export all entries for the content type, but only the localizable fields + filters
         environmentObject
@@ -758,11 +696,9 @@ class Integration extends Component {
         (v, i) => fieldIDs.indexOf(v) === i
       );
 
-      const dropdownCategories = uniqueFilterIDs.map((id) => ({
-        key: id,
-        text: id,
-        value: id,
-      }));
+      const dropdownCategories = Helpers.generateAllFieldsDropdown(
+        uniqueFilterIDs
+      );
 
       this.setState({ allFieldsForFiltering: dropdownCategories });
     });
