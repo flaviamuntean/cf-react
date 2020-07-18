@@ -63,6 +63,67 @@ export default class Helpers {
     }));
   };
 
+  static filterByLocalizable = (response) => {
+    return response.filter((field) => field.localized === true);
+  };
+
+  static getUniqueFieldValues = (entries, chosenField, sourceLocale) => {
+    const fieldValues = entries.items.map(
+      (entry) => entry.fields[chosenField] || null
+    );
+    const fieldValuesArray = fieldValues.map((entry) => {
+      if (entry) {
+        if (entry[sourceLocale]) {
+          return entry[sourceLocale];
+        }
+      }
+      return "";
+    });
+
+    return fieldValuesArray
+      .flat()
+      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i)
+      .filter((v) => v !== "");
+  };
+
+  static generateExportOptionsApiQuery = (
+    selectedFilterValues,
+    selectedFilter
+  ) => {
+    if (selectedFilterValues.length > 1) {
+      return `fields.${selectedFilter}[in]`;
+    } else {
+      return `fields.${selectedFilter}`;
+    }
+  };
+
+  static generateExportDefaultApiQuery = (
+    allFieldsValues,
+    selectedAllFieldsFilter
+  ) => {
+    if (allFieldsValues.includes(",")) {
+      return `fields.${selectedAllFieldsFilter}[in]`;
+    } else {
+      return `fields.${selectedAllFieldsFilter}`;
+    }
+  };
+
+  static generateFieldsSelector = (selectedFields) => {
+    return selectedFields.map((field) => `fields.${field}`).join(",");
+  };
+
+  static safelyParseJSON(json) {
+    let parsed;
+
+    try {
+      parsed = JSON.parse(json);
+    } catch (e) {
+      console.log("error!!");
+    }
+
+    return parsed; // Returns undefined if json content is invalid and cannot be parsed
+  }
+
   static subFilter = (object, lang) => {
     return Object.entries(object).reduce((filtered, [key, val]) => {
       if (key === lang) {

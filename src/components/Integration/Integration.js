@@ -314,7 +314,7 @@ class Integration extends Component {
 
     const response = await (await environmentObject.getContentType(contentType))
       .fields;
-    const selectedFields = response.filter((field) => field.localized === true);
+    const selectedFields = Helpers.filterByLocalizable(response);
     const dropdownCategories = Helpers.generateFieldsDropdown(selectedFields);
     this.setState({ fields: dropdownCategories });
   };
@@ -358,22 +358,11 @@ class Integration extends Component {
       limit: 1000,
     });
 
-    const fieldValues = entries.items.map(
-      (entry) => entry.fields[chosenField] || null
+    const uniqueFieldValues = Helpers.getUniqueFieldValues(
+      entries,
+      chosenField,
+      sourceLocale
     );
-    const fieldValuesArray = fieldValues.map((entry) => {
-      if (entry) {
-        if (entry[sourceLocale]) {
-          return entry[sourceLocale];
-        }
-      }
-      return "";
-    });
-
-    const uniqueFieldValues = fieldValuesArray
-      .flat()
-      .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i)
-      .filter((v) => v !== "");
 
     const dropdownCategories = Helpers.generateFilterValuesDropdown(
       uniqueFieldValues
@@ -402,17 +391,11 @@ class Integration extends Component {
     } = this.state;
 
     const selectedFilterValuesString = selectedFilterValues.join(",");
-    let query;
-
-    if (selectedFilterValues.length > 1) {
-      query = `fields.${selectedFilter}[in]`;
-    } else {
-      query = `fields.${selectedFilter}`;
-    }
-
-    const fieldsSelector = selectedFields
-      .map((field) => `fields.${field}`)
-      .join(",");
+    const query = Helpers.generateExportOptionsApiQuery(
+      selectedFilterValues,
+      selectedFilter
+    );
+    const fieldsSelector = Helpers.generateFieldsSelector(selectedFields);
 
     environmentObject
       .getEntries({
@@ -499,18 +482,6 @@ class Integration extends Component {
     this.setState({ translation: e.target.value });
   };
 
-  safelyParseJSON(json) {
-    let parsed;
-
-    try {
-      parsed = JSON.parse(json);
-    } catch (e) {
-      console.log("error!!");
-    }
-
-    return parsed; // Returns undefined if json content is invalid and cannot be parsed
-  }
-
   writeAndShowImportLog = (updatedIds, failedIds, ignoredIds) => {
     const importLog = `Entries updated (${
       updatedIds.length
@@ -593,7 +564,7 @@ class Integration extends Component {
 
   submitForm = () => {
     const { translation, uploadedJsonContent } = this.state;
-    const parsedTranslation = this.safelyParseJSON(translation);
+    const parsedTranslation = Helpers.safelyParseJSON(translation);
 
     if (
       !!uploadedJsonContent &&
@@ -631,7 +602,7 @@ class Integration extends Component {
       const response = await (
         await environmentObject.getContentType(contentType)
       ).fields;
-      const localizable = response.filter((field) => field.localized === true);
+      const localizable = Helpers.filterByLocalizable(response);
 
       // if the content type has any localizable fields
       if (localizable.length > 0) {
@@ -642,13 +613,10 @@ class Integration extends Component {
           (field) => `fields.${field}`
         );
 
-        let query;
-
-        if (allFieldsValues.includes(",")) {
-          query = `fields.${selectedAllFieldsFilter}[in]`;
-        } else {
-          query = `fields.${selectedAllFieldsFilter}`;
-        }
+        const query = Helpers.generateExportDefaultApiQuery(
+          allFieldsValues,
+          selectedAllFieldsFilter
+        );
 
         // export all entries for the content type, but only the localizable fields + filters
         environmentObject
