@@ -1,4 +1,68 @@
 export default class Helpers {
+  static generateSpacesDropdown = (spaces) => {
+    return spaces.items.map((space) => ({
+      key: space.sys.id,
+      text: space.name,
+      value: space.sys.id,
+    }));
+  };
+
+  static generateEnvironmentsDropdown = (environments) => {
+    return environments.items.map((environment) => ({
+      key: environment.sys.id,
+      text: environment.sys.id,
+      value: environment.sys.id,
+    }));
+  };
+
+  static generateContentTypesDropdown = (contentTypes) => {
+    return contentTypes.items.map((contentType) => ({
+      key: contentType.sys.id,
+      text: contentType.name,
+      value: contentType.sys.id,
+    }));
+  };
+
+  static generateFieldsDropdown = (selectedFields) => {
+    return selectedFields.map((field) => ({
+      key: field.id,
+      text: field.name,
+      value: field.id,
+    }));
+  };
+
+  static generateFiltersDropdown = (response) => {
+    return response.map((field) => ({
+      key: field.id,
+      text: field.name,
+      value: field.id,
+    }));
+  };
+
+  static generateFilterValuesDropdown = (uniqueFieldValues) => {
+    return uniqueFieldValues.map((value) => ({
+      key: value,
+      text: value,
+      value: value,
+    }));
+  };
+
+  static generateLocalesDropdown = (locales) => {
+    return locales.items.map((locale) => ({
+      key: locale.sys.id,
+      text: locale.name,
+      value: locale.code,
+    }));
+  };
+
+  static generateAllFieldsDropdown = (uniqueFilterIDs) => {
+    return uniqueFilterIDs.map((id) => ({
+      key: id,
+      text: id,
+      value: id,
+    }));
+  };
+
   static subFilter = (object, lang) => {
     return Object.entries(object).reduce((filtered, [key, val]) => {
       if (key === lang) {

@@ -188,11 +188,7 @@ class Integration extends Component {
     this.managementClient
       .getSpaces()
       .then((spaces) => {
-        const dropdownCategories = spaces.items.map((space) => ({
-          key: space.sys.id,
-          text: space.name,
-          value: space.sys.id,
-        }));
+        const dropdownCategories = Helpers.generateSpacesDropdown(spaces);
         this.setState({ spaces: dropdownCategories });
       })
       .catch((e) => {
@@ -249,11 +245,9 @@ class Integration extends Component {
       .getSpace(space)
       .then((space) => space.getEnvironments())
       .then((environments) => {
-        const dropdownCategories = environments.items.map((environment) => ({
-          key: environment.sys.id,
-          text: environment.sys.id,
-          value: environment.sys.id,
-        }));
+        const dropdownCategories = Helpers.generateEnvironmentsDropdown(
+          environments
+        );
         this.setState({ environments: dropdownCategories });
       })
       .catch((e) => {
@@ -296,12 +290,10 @@ class Integration extends Component {
   getContentTypes = (environment) => {
     environment
       .getContentTypes()
-      .then((response) => {
-        const dropdownCategories = response.items.map((contentType) => ({
-          key: contentType.sys.id,
-          text: contentType.name,
-          value: contentType.sys.id,
-        }));
+      .then((contentTypes) => {
+        const dropdownCategories = Helpers.generateContentTypesDropdown(
+          contentTypes
+        );
         this.setState(
           { contentTypes: dropdownCategories },
           this.getAllFieldsForAllContentTypes
@@ -335,11 +327,7 @@ class Integration extends Component {
     const response = await (await environmentObject.getContentType(contentType))
       .fields;
     const selectedFields = response.filter((field) => field.localized === true);
-    const dropdownCategories = selectedFields.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
+    const dropdownCategories = Helpers.generateFieldsDropdown(selectedFields);
     this.setState({ fields: dropdownCategories });
   };
 
@@ -358,11 +346,7 @@ class Integration extends Component {
 
     const response = await (await environmentObject.getContentType(contentType))
       .fields;
-    const dropdownCategories = response.map((field) => ({
-      key: field.id,
-      text: field.name,
-      value: field.id,
-    }));
+    const dropdownCategories = Helpers.generateFiltersDropdown(response);
     this.setState({ filters: dropdownCategories });
   };
 
@@ -403,11 +387,9 @@ class Integration extends Component {
       .filter((v, i) => fieldValuesArray.flat().indexOf(v) === i)
       .filter((v) => v !== "");
 
-    const dropdownCategories = uniqueFieldValues.map((value) => ({
-      key: value,
-      text: value,
-      value: value,
-    }));
+    const dropdownCategories = Helpers.generateFilterValuesDropdown(
+      uniqueFieldValues
+    );
     this.setState({ filterValues: dropdownCategories });
   };
 
@@ -502,12 +484,8 @@ class Integration extends Component {
   getLocales = (environment) => {
     environment
       .getLocales()
-      .then((response) => {
-        const dropdownCategories = response.items.map((locale) => ({
-          key: locale.sys.id,
-          text: locale.name,
-          value: locale.code,
-        }));
+      .then((locales) => {
+        const dropdownCategories = Helpers.generateLocalesDropdown(locales);
         this.setState({ locales: dropdownCategories });
       })
       .catch((e) => {
@@ -758,11 +736,9 @@ class Integration extends Component {
         (v, i) => fieldIDs.indexOf(v) === i
       );
 
-      const dropdownCategories = uniqueFilterIDs.map((id) => ({
-        key: id,
-        text: id,
-        value: id,
-      }));
+      const dropdownCategories = Helpers.generateAllFieldsDropdown(
+        uniqueFilterIDs
+      );
 
       this.setState({ allFieldsForFiltering: dropdownCategories });
     });
