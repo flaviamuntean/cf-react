@@ -82,10 +82,14 @@ class Integration extends Component {
 
   componentDidMount() {
     this.getInitialIntegrationDetails();
+    window.onbeforeunload = function () {
+      window.scrollTo(0, 0);
+    };
   }
 
   componentDidUpdate = (prevProps, prevState) => {
     if (prevProps.accessToken !== this.props.accessToken) {
+      window.scrollTo(0, 0);
       this.setInitState();
       this.getInitialIntegrationDetails();
     }
