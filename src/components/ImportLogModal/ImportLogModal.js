@@ -9,7 +9,15 @@ class ImportLogModal extends Component {
       const data =
         "data:text/plain;charset=utf-8," + encodeURIComponent(errorLog);
       return (
-        <a href={data} download="error-log.txt" style={{ color: "white" }}>
+        <a
+          href={data}
+          download={`error_log_${new Date()
+            .toLocaleString()
+            .replace(", ", "_")
+            .replace(/\//g, "-")
+            .replace(/:/g, "")}.txt`}
+          style={{ color: "white" }}
+        >
           <Button primary>
             <Icon name="download" />
             Download Error Log

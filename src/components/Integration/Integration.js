@@ -488,7 +488,9 @@ class Integration extends Component {
       updatedIds.length
     }): ${updatedIds.join(", ")}\n\nEntries failed (${
       failedIds.length
-    }): ${failedIds.join(", ")}\n\nEntries ignored - no new text (${
+    }): ${failedIds.join(
+      ", "
+    )}\n\nEntries ignored - translation missing or does not differ from source text (${
       ignoredIds.length
     }): ${ignoredIds.join(", ")}`;
 
@@ -512,8 +514,10 @@ class Integration extends Component {
         .then((entry) => {
           let needsUpdating = false;
           keys.forEach((key) => {
-            // If the translation is different to the source text
             if (
+              // If the imported field has content for the chosen target language
+              entryItem[key][targetLocale] !== undefined &&
+              // And the translation is different to the source text
               !isEqual(
                 entry.fields[key][targetLocale],
                 entryItem[key][targetLocale]
@@ -524,6 +528,7 @@ class Integration extends Component {
               entry.fields[key][targetLocale] = entryItem[key][targetLocale];
             }
           });
+
           if (needsUpdating) {
             entry
               .update()
