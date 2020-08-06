@@ -141,25 +141,17 @@ class Integration extends Component {
         this.managementClient
           .getSpace(space)
           .then((space) => space.getEnvironment(environment))
-          .then((environment) =>
-            this.setState({ environmentObject: environment })
-          );
-        this.getContentTypesAndLocales(space, environment);
+          .then((environment) => {
+            this.setState({ environmentObject: environment });
+            this.getContentTypesAndLocales(environment);
+          });
       }
     }
   };
 
-  getContentTypesAndLocales = (space, environment) => {
-    this.managementClient
-      .getSpace(space)
-      .then((space) => space.getEnvironment(environment))
-      .then((environment) => {
-        this.getContentTypes(environment);
-        this.getLocales(environment);
-      })
-      .catch((e) => {
-        console.log(e);
-      });
+  getContentTypesAndLocales = (environmentObject) => {
+    this.getContentTypes(environmentObject);
+    this.getLocales(environmentObject);
   };
 
   // Display the first section of the integration
@@ -270,10 +262,10 @@ class Integration extends Component {
       allFieldsValues: "",
     });
     if (value) {
-      const { selectedSpace, spaceObject } = this.state;
+      const { spaceObject } = this.state;
       spaceObject.getEnvironment(value).then((environment) => {
         this.setState({ environmentObject: environment });
-        this.getContentTypesAndLocales(selectedSpace, value);
+        this.getContentTypesAndLocales(environment);
       });
     }
   };
