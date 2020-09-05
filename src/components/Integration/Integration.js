@@ -7,6 +7,7 @@ import WindowUtils from "../../utils/WindowUtils";
 import Helpers from "../../utils/Helpers";
 import Export from "../Export/Export";
 import ExportDefault from "../ExportDefault/ExportDefault";
+import ExportMeta from "../ExportMeta/ExportMeta";
 import Import from "../Import/Import";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
 import ErrorMsg from "../ErrorMsg/ErrorMsg";
@@ -30,6 +31,9 @@ class Integration extends Component {
       environments: [],
       selectedEnvironment: "",
       environmentObject: null,
+      // tags
+      tags: [],
+      selectedMetaTags: [],
       // export options
       contentTypes: [],
       selectedContentType: "",
@@ -46,6 +50,7 @@ class Integration extends Component {
       sourceLocale: "",
       // modals
       openSourceTextModal: false,
+      sourceTextModalLoading: false,
       openImportLogModal: false,
       translation: "",
       sourceText: "",
@@ -116,6 +121,8 @@ class Integration extends Component {
       allFieldsValues: "",
       showErrorMsg: false,
       errorMsgContent: "",
+      tags: [],
+      selectedMetaTags: [],
     });
   };
 
@@ -144,9 +151,18 @@ class Integration extends Component {
           .then((environment) => {
             this.setState({ environmentObject: environment });
             this.getContentTypesAndLocales(environment);
+            this.getMetaTags(environment);
           });
       }
     }
+  };
+
+  getMetaTags = (environmentObject) => {
+    environmentObject
+      .getTags()
+      .then((tags) =>
+        this.setState({ tags: Helpers.generateTagsForDropdown(tags) })
+      );
   };
 
   getContentTypesAndLocales = (environmentObject) => {
@@ -260,12 +276,15 @@ class Integration extends Component {
       allFieldsForFiltering: [],
       selectedAllFieldsFilter: "",
       allFieldsValues: "",
+      tags: [],
+      selectedMetaTags: [],
     });
     if (value) {
       const { spaceObject } = this.state;
       spaceObject.getEnvironment(value).then((environment) => {
         this.setState({ environmentObject: environment });
         this.getContentTypesAndLocales(environment);
+        this.getMetaTags(environment);
       });
     }
   };
@@ -673,6 +692,90 @@ class Integration extends Component {
     });
   };
 
+  handleMetaExport = async () => {
+    const { contentTypes, environmentObject, selectedMetaTags } = this.state;
+
+    this.setState({ openSourceTextModal: true, sourceTextModalLoading: true });
+
+    const tagsForExport = Helpers.generateTagsSelector(selectedMetaTags);
+
+    let allContentForExport = [];
+    // map content types into an array of only the content type ids
+    const contentTypesArray = contentTypes.map(
+      (contentType) => contentType.value
+    );
+
+    // for each content type
+    let promises = contentTypesArray.map(async (contentType) => {
+      // get the localizable fields
+      const response = await (
+        await environmentObject.getContentType(contentType)
+      ).fields;
+      const localizable = Helpers.filterByLocalizable(response);
+
+      // if the content type has any localizable fields
+      if (localizable.length > 0) {
+        // combine the ids of the localizable fields into the query needed for export
+        const localizableFields = localizable.map((field) => field.id);
+
+        const fieldsForExport = localizableFields.map(
+          (field) => `fields.${field}`
+        );
+
+        // export all entries for the content type, but only the localizable fields + filters
+        environmentObject
+          .getEntries({
+            content_type: contentType,
+            select: fieldsForExport,
+            limit: 1000,
+            "metadata.tags.sys.id[all]": tagsForExport,
+          })
+          .then((entries) => {
+            // keep only the fields and the sys info
+            let numberExportedEntries = 0;
+
+            const localizableEntries = entries.items
+              .map((item) => {
+                const id = item.sys.id;
+                if (item.fields) {
+                  const fields = Helpers.filterByLang(
+                    item.fields,
+                    this.state.sourceLocale
+                  );
+
+                  if (
+                    Object.keys(fields).length === 0 &&
+                    fields.constructor === Object
+                  ) {
+                    return null;
+                  } else {
+                    fields.entryId = id;
+                    numberExportedEntries++;
+                    return fields;
+                  }
+                }
+                return null;
+              })
+              .filter((entry) => entry !== null);
+
+            allContentForExport.push(localizableEntries);
+
+            this.setState((prevState, props) => ({
+              sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
+              numberSourceEntries:
+                prevState.numberSourceEntries + numberExportedEntries,
+            }));
+          })
+          .catch((error) => {
+            console.log(error);
+          });
+      }
+    });
+    Promise.all(promises).then(() =>
+      this.setState({ sourceTextModalLoading: false })
+    );
+  };
+
   getAllFieldsForAllContentTypes = () => {
     // get all content types
     const { contentTypes, environmentObject } = this.state;
@@ -713,6 +816,11 @@ class Integration extends Component {
     });
   };
 
+  setAllTags = (e, { value }) => {
+    // Set the metatags used for export
+    this.setState({ selectedMetaTags: value });
+  };
+
   setAllFieldsValues = (e, { value }) =>
     this.setState({ allFieldsValues: value });
 
@@ -742,6 +850,33 @@ class Integration extends Component {
         selectedFilter={selectedAllFieldsFilter}
         allFieldsValues={allFieldsValues}
         setAllFieldsValues={this.setAllFieldsValues}
+      />
+    );
+  };
+
+  exportMeta = () => {
+    const {
+      selectedEnvironment,
+      contentTypes,
+      selectedMetaTags,
+      locales,
+      sourceLocale,
+      tags,
+    } = this.state;
+
+    return (
+      <ExportMeta
+        selectedEnvironment={selectedEnvironment}
+        contentTypes={contentTypes}
+        locales={locales}
+        sourceLocale={sourceLocale}
+        setSourceLocale={this.setSourceLocale}
+        // functions
+        handleExportDefault={this.handleMetaExport}
+        // new
+        tags={tags}
+        setTags={this.setAllTags}
+        selectedTags={selectedMetaTags}
       />
     );
   };
@@ -823,16 +958,19 @@ class Integration extends Component {
       numberSourceEntries,
       showErrorMsg,
       errorMsgContent,
+      sourceTextModalLoading,
     } = this.state;
 
     return (
       <div>
         <ErrorMsg content={errorMsgContent} visible={showErrorMsg} />
         {this.displayAuthDetails()}
-        {this.exportDefault()}
+        {/* {this.exportDefault()} */}
+        {this.exportMeta()}
         {this.export()}
         <SourceTextModal
           open={openSourceTextModal}
+          loading={sourceTextModalLoading}
           sourceText={sourceText}
           numberSourceEntries={numberSourceEntries}
           handleCloseModal={this.handleCloseSourceTextModal}

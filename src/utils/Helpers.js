@@ -63,6 +63,14 @@ export default class Helpers {
     }));
   };
 
+  static generateTagsForDropdown = (tags) => {
+    return tags.items.map((t) => ({
+      key: t.sys.id,
+      text: t.name,
+      value: t.sys.id,
+    }));
+  };
+
   static filterByLocalizable = (response) => {
     return response.filter((field) => field.localized === true);
   };
@@ -110,6 +118,10 @@ export default class Helpers {
 
   static generateFieldsSelector = (selectedFields) => {
     return selectedFields.map((field) => `fields.${field}`).join(",");
+  };
+
+  static generateTagsSelector = (selectedTags) => {
+    return selectedTags.join(",");
   };
 
   static safelyParseJSON(json) {
