@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import isEqual from "lodash/isEqual";
 import PropTypes from "prop-types";
-import { Modal, Image, Button, Header } from "semantic-ui-react";
+import { Modal, Image, Button, Header, Icon } from "semantic-ui-react";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
@@ -60,6 +60,8 @@ class Integration extends Component {
       importLog: "",
       errorLog: "",
       numberSourceEntries: 0,
+      confirmationModalOpen: false,
+      confirmationModalText: "",
       // export default
       allFieldsForFiltering: [],
       selectedAllFieldsFilter: "",
@@ -524,9 +526,49 @@ class Integration extends Component {
         .catch((e) => console.log(e));
     });
 
-    Promise.all(promises).then(() => {
-      this.setState({ openUpdateExportedEntriesModal: false, sourceIds: [] });
-    });
+    Promise.all(promises)
+      .then((result) => {
+        this.setState({
+          openUpdateExportedEntriesModal: false,
+          sourceIds: [],
+          confirmationModalOpen: true,
+          confirmationModalText: `Number of entries updated to Translation in Progress: ${result.length}.`,
+        });
+      })
+      .catch((error) =>
+        this.setState({
+          openUpdateExportedEntriesModal: false,
+          sourceIds: [],
+          confirmationModalOpen: true,
+          confirmationModalText: `Error occured: ${error}.`,
+        })
+      );
+  };
+
+  confirmationModal = () => {
+    const { confirmationModalOpen, confirmationModalText } = this.state;
+    return (
+      <Modal
+        basic
+        open={confirmationModalOpen}
+        size="small"
+        onClose={() => this.setState({ confirmationModalOpen: false })}
+      >
+        <Header icon>
+          <Icon
+            name={
+              confirmationModalText.includes("Error")
+                ? "exclamation"
+                : "checkmark"
+            }
+          />
+          {confirmationModalText.includes("Error") ? "Error" : "Success"}
+        </Header>
+        <Modal.Content style={{ textAlign: "center" }}>
+          {confirmationModalText}
+        </Modal.Content>
+      </Modal>
+    );
   };
 
   // IMPORT
@@ -1071,6 +1113,7 @@ class Integration extends Component {
             />
           </Modal.Actions>
         </Modal>
+        {this.confirmationModal()}
       </div>
     );
   }
