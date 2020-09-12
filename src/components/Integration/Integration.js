@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import isEqual from "lodash/isEqual";
 import PropTypes from "prop-types";
+import { Modal, Image, Button, Header, Icon } from "semantic-ui-react";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
@@ -50,13 +51,17 @@ class Integration extends Component {
       sourceLocale: "",
       // modals
       openSourceTextModal: false,
+      openUpdateExportedEntriesModal: false,
       sourceTextModalLoading: false,
       openImportLogModal: false,
       translation: "",
       sourceText: "",
+      sourceIds: [],
       importLog: "",
       errorLog: "",
       numberSourceEntries: 0,
+      confirmationModalOpen: false,
+      confirmationModalText: "",
       // export default
       allFieldsForFiltering: [],
       selectedAllFieldsFilter: "",
@@ -459,11 +464,111 @@ class Integration extends Component {
   };
 
   handleCloseSourceTextModal = () => {
+    const { sourceIds } = this.state;
+
     this.setState({
       openSourceTextModal: false,
       sourceText: "",
       numberSourceEntries: 0,
     });
+
+    if (sourceIds.length > 0) {
+      this.setState({ openUpdateExportedEntriesModal: true });
+    }
+  };
+
+  closeUpdateTagsModal = () => {
+    this.setState({ openUpdateExportedEntriesModal: false, sourceIds: [] });
+  };
+
+  handleUpdateTags = () => {
+    const { sourceIds, environmentObject } = this.state;
+    console.log(sourceIds);
+
+    const promises = sourceIds.map((id) => {
+      environmentObject
+        .getEntry(id)
+        .then((entry) => {
+          // define an in progress tag
+          const inProgressTag = {
+            sys: {
+              type: "Link",
+              linkType: "Tag",
+              id: "translations_TranslationInProgress",
+            },
+          };
+
+          const readyTagExists = entry.metadata.tags.some(
+            (el) => el.sys.id === "translations_ContentReadyForTranslation"
+          );
+          const inProgressTagExists = entry.metadata.tags.some(
+            (el) => el.sys.id === "translations_TranslationInProgress"
+          );
+
+          if (readyTagExists) {
+            // remove the ready tag
+            const i = entry.metadata.tags.findIndex(
+              (obj) => obj.sys.id === "translations_ContentReadyForTranslation"
+            );
+            entry.metadata.tags.splice(i, 1);
+          }
+
+          if (!inProgressTagExists) {
+            // add the in progress tag
+            entry.metadata.tags.push(inProgressTag);
+          }
+
+          entry
+            .update()
+            .then(() => console.log("updated"))
+            .catch((e) => console.log(e));
+        })
+        .catch((e) => console.log(e));
+    });
+
+    Promise.all(promises)
+      .then((result) => {
+        this.setState({
+          openUpdateExportedEntriesModal: false,
+          sourceIds: [],
+          confirmationModalOpen: true,
+          confirmationModalText: `Number of entries updated to Translation in Progress: ${result.length}.`,
+        });
+      })
+      .catch((error) =>
+        this.setState({
+          openUpdateExportedEntriesModal: false,
+          sourceIds: [],
+          confirmationModalOpen: true,
+          confirmationModalText: `Error occured: ${error}.`,
+        })
+      );
+  };
+
+  confirmationModal = () => {
+    const { confirmationModalOpen, confirmationModalText } = this.state;
+    return (
+      <Modal
+        basic
+        open={confirmationModalOpen}
+        size="small"
+        onClose={() => this.setState({ confirmationModalOpen: false })}
+      >
+        <Header icon>
+          <Icon
+            name={
+              confirmationModalText.includes("Error")
+                ? "exclamation"
+                : "checkmark"
+            }
+          />
+          {confirmationModalText.includes("Error") ? "Error" : "Success"}
+        </Header>
+        <Modal.Content style={{ textAlign: "center" }}>
+          {confirmationModalText}
+        </Modal.Content>
+      </Modal>
+    );
   };
 
   // IMPORT
@@ -762,6 +867,7 @@ class Integration extends Component {
 
             this.setState((prevState, props) => ({
               sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
+              sourceIds: allContentForExport.flat().map((e) => e.entryId),
               numberSourceEntries:
                 prevState.numberSourceEntries + numberExportedEntries,
             }));
@@ -959,6 +1065,8 @@ class Integration extends Component {
       showErrorMsg,
       errorMsgContent,
       sourceTextModalLoading,
+      openUpdateExportedEntriesModal,
+      sourceIds,
     } = this.state;
 
     return (
@@ -976,6 +1084,36 @@ class Integration extends Component {
           handleCloseModal={this.handleCloseSourceTextModal}
         />
         {this.import()}
+        <Modal open={openUpdateExportedEntriesModal}>
+          <Modal.Content image>
+            <Image
+              size="medium"
+              src="https://react.semantic-ui.com/images/wireframe/paragraph.png"
+              wrapped
+            />
+            <Modal.Description>
+              <Header>Update meta tags</Header>
+              <p>
+                Is the content you've just exported ready to be translated? If
+                so, please confirm if the entries should be updated with the tag
+                <strong> Translation in progress</strong>.
+              </p>
+            </Modal.Description>
+          </Modal.Content>
+          <Modal.Actions>
+            <Button color="black" onClick={() => this.closeUpdateTagsModal()}>
+              Nope
+            </Button>
+            <Button
+              content="Yes, update tags"
+              labelPosition="right"
+              icon="checkmark"
+              positive
+              onClick={() => this.handleUpdateTags()}
+            />
+          </Modal.Actions>
+        </Modal>
+        {this.confirmationModal()}
       </div>
     );
   }
