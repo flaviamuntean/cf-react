@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Modal, Header, Icon, Button, Loader, Dimmer } from "semantic-ui-react";
+import { Modal, Icon, Button, Placeholder } from "semantic-ui-react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 
 class SourceTextModal extends Component {
@@ -30,9 +30,20 @@ class SourceTextModal extends Component {
         <Modal open={open} closeIcon onClose={handleCloseModal}>
           <Modal.Header>Source text</Modal.Header>
           <Modal.Content>
-            <Dimmer active inverted>
-              <Loader>Preparing text for export</Loader>
-            </Dimmer>
+            <Placeholder fluid>
+              <Placeholder.Paragraph>
+                <Placeholder.Line />
+                <Placeholder.Line />
+                <Placeholder.Line />
+                <Placeholder.Line />
+                <Placeholder.Line />
+              </Placeholder.Paragraph>
+              <Placeholder.Paragraph>
+                <Placeholder.Line />
+                <Placeholder.Line />
+                <Placeholder.Line />
+              </Placeholder.Paragraph>
+            </Placeholder>
           </Modal.Content>
         </Modal>
       );
