@@ -1141,6 +1141,7 @@ class Integration extends Component {
           open={openSourceTextModal}
           loading={sourceTextModalLoading}
           sourceText={sourceText}
+          sourceIds={sourceIds}
           numberSourceEntries={numberSourceEntries}
           handleCloseModal={this.handleCloseSourceTextModal}
         />

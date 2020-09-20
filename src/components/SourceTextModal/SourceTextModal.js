@@ -19,11 +19,15 @@ class SourceTextModal extends Component {
       sourceText,
       handleCloseModal,
       numberSourceEntries,
+      sourceIds,
       loading,
     } = this.props;
 
     const data =
       "data:text/json;charset=utf-8," + encodeURIComponent(sourceText);
+
+    const sourceIdsData =
+      "data:text/txt;charset=utf-8," + encodeURIComponent(sourceIds.join());
 
     if (loading) {
       return (
@@ -59,6 +63,16 @@ class SourceTextModal extends Component {
             </Modal.Description>
           </Modal.Content>
           <Modal.Actions>
+            <a
+              href={sourceIdsData}
+              download="entry_ids.txt"
+              style={{ color: "white" }}
+            >
+              <Button primary>
+                <Icon name="download" />
+                Download Entry IDs
+              </Button>
+            </a>
             <a href={data} download="source.json" style={{ color: "white" }}>
               <Button primary>
                 <Icon name="download" />
