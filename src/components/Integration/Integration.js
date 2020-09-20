@@ -35,6 +35,7 @@ class Integration extends Component {
       // tags
       tags: [],
       selectedMetaTags: [],
+      selectedImportMetaTags: [],
       // export options
       contentTypes: [],
       selectedContentType: "",
@@ -478,7 +479,12 @@ class Integration extends Component {
   };
 
   closeUpdateTagsModal = () => {
-    this.setState({ openUpdateExportedEntriesModal: false, sourceIds: [] });
+    this.setState({
+      openUpdateExportedEntriesModal: false,
+      sourceIds: [],
+      selectedMetaTags: [],
+      sourceLocale: "",
+    });
   };
 
   handleUpdateTags = () => {
@@ -498,14 +504,9 @@ class Integration extends Component {
             },
           };
 
-          const readyTagExists = entry.metadata.tags.some(
-            (el) => el.sys.id === "translations_ContentReadyForTranslation"
-          );
-          const inProgressTagExists = entry.metadata.tags.some(
-            (el) => el.sys.id === "translations_TranslationInProgress"
-          );
-
-          if (readyTagExists) {
+          if (
+            this.tagExists(entry, "translations_ContentReadyForTranslation")
+          ) {
             // remove the ready tag
             const i = entry.metadata.tags.findIndex(
               (obj) => obj.sys.id === "translations_ContentReadyForTranslation"
@@ -513,7 +514,7 @@ class Integration extends Component {
             entry.metadata.tags.splice(i, 1);
           }
 
-          if (!inProgressTagExists) {
+          if (!this.tagExists(entry, "translations_TranslationInProgress")) {
             // add the in progress tag
             entry.metadata.tags.push(inProgressTag);
           }
@@ -533,6 +534,8 @@ class Integration extends Component {
           sourceIds: [],
           confirmationModalOpen: true,
           confirmationModalText: `Number of entries updated to Translation in Progress: ${result.length}.`,
+          selectedMetaTags: [],
+          sourceLocale: "",
         });
       })
       .catch((error) =>
@@ -541,6 +544,8 @@ class Integration extends Component {
           sourceIds: [],
           confirmationModalOpen: true,
           confirmationModalText: `Error occured: ${error}.`,
+          selectedMetaTags: [],
+          sourceLocale: "",
         })
       );
   };
@@ -646,6 +651,7 @@ class Integration extends Component {
               // Update the source text
               needsUpdating = true;
               entry.fields[key][targetLocale] = entryItem[key][targetLocale];
+              this.updateMetaTagsOnImport(entry);
             }
           });
 
@@ -691,6 +697,45 @@ class Integration extends Component {
     });
   };
 
+  updateMetaTagsOnImport = (entry) => {
+    const { selectedImportMetaTags } = this.state;
+
+    const tagsToApply = selectedImportMetaTags.map((t) =>
+      this.tagIdToObject(t)
+    );
+
+    if (this.tagExists(entry, "translations_ContentReadyForTranslation")) {
+      const i = entry.metadata.tags.findIndex(
+        (obj) => obj.sys.id === "translations_ContentReadyForTranslation"
+      );
+      entry.metadata.tags.splice(i, 1);
+    }
+
+    if (this.tagExists(entry, "translations_TranslationInProgress")) {
+      const i = entry.metadata.tags.findIndex(
+        (obj) => obj.sys.id === "translations_TranslationInProgress"
+      );
+      entry.metadata.tags.splice(i, 1);
+    }
+
+    tagsToApply.forEach((tag) => {
+      if (!this.tagExists(entry, tag.sys.id)) {
+        entry.metadata.tags.push(tag);
+      }
+    });
+  };
+
+  tagExists = (entry, tagName) =>
+    entry.metadata.tags.some((el) => el.sys.id === tagName);
+
+  tagIdToObject = (t) => ({
+    sys: {
+      type: "Link",
+      linkType: "Tag",
+      id: t,
+    },
+  });
+
   submitForm = () => {
     const { translation, uploadedJsonContent } = this.state;
     const parsedTranslation = Helpers.safelyParseJSON(translation);
@@ -709,7 +754,12 @@ class Integration extends Component {
   };
 
   handleCloseImportLogModal = () => {
-    this.setState({ openImportLogModal: false, importLog: "", errorLog: "" });
+    this.setState({
+      openImportLogModal: false,
+      importLog: "",
+      errorLog: "",
+      selectedImportMetaTags: [],
+    });
   };
 
   handleExportDefault = () => {
@@ -927,6 +977,11 @@ class Integration extends Component {
     this.setState({ selectedMetaTags: value });
   };
 
+  setAllImportTags = (e, { value }) => {
+    // Set the metatags used for export
+    this.setState({ selectedImportMetaTags: value });
+  };
+
   setAllFieldsValues = (e, { value }) =>
     this.setState({ allFieldsValues: value });
 
@@ -1035,6 +1090,8 @@ class Integration extends Component {
       errorLog,
       selectedEnvironment,
       uploadedFiles,
+      tags,
+      selectedImportMetaTags,
     } = this.state;
 
     return (
@@ -1047,6 +1104,10 @@ class Integration extends Component {
         errorLog={errorLog}
         selectedEnvironment={selectedEnvironment}
         uploadedFiles={uploadedFiles}
+        // tags
+        tags={tags}
+        setImportTags={this.setAllImportTags}
+        selectedImportTags={selectedImportMetaTags}
         // functions
         setTargetLocale={this.setTargetLocale}
         submitForm={this.submitForm}
@@ -1075,7 +1136,7 @@ class Integration extends Component {
         {this.displayAuthDetails()}
         {/* {this.exportDefault()} */}
         {this.exportMeta()}
-        {this.export()}
+        {/* {this.export()} */}
         <SourceTextModal
           open={openSourceTextModal}
           loading={sourceTextModalLoading}

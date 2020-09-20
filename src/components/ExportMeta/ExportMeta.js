@@ -36,10 +36,11 @@ class ExportMeta extends Component {
 
     if (tags.length > 0) {
       return (
-        <Grid.Row columns={3}>
+        <Grid.Row columns={2}>
           <Grid.Column>
+            <p style={{ marginTop: "20px" }}>1. Choose your source language</p>
             <Dropdown
-              placeholder="Select the source language"
+              placeholder="Source language"
               selection
               clearable
               fluid
@@ -49,8 +50,9 @@ class ExportMeta extends Component {
             />
           </Grid.Column>
           <Grid.Column>
+            <p style={{ marginTop: "20px" }}>2. Filter by one or more tags</p>
             <Dropdown
-              placeholder="Filter by metadata tags..."
+              placeholder="Metadata tags (entry must include all selected tags)"
               multiple
               selection
               clearable
@@ -84,18 +86,6 @@ class ExportMeta extends Component {
     );
   };
 
-  filterText = () => {
-    const { tags } = this.props;
-
-    if (tags.length > 0) {
-      return (
-        <p style={{ marginTop: "20px", marginBottom: "0" }}>
-          Select the source language and choose one or more tags
-        </p>
-      );
-    }
-  };
-
   export = () => {
     const {
       selectedEnvironment,
@@ -109,9 +99,8 @@ class ExportMeta extends Component {
 
     return (
       <Segment color="grey">
-        <Header as="h2">Export All Localizable Fields by Tags</Header>
+        <Header as="h2">Export Source Text</Header>
         <Grid>
-          {this.filterText()}
           {this.filters()}
           <Grid.Row columns={1}>
             <Grid.Column>
