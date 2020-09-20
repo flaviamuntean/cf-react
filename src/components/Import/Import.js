@@ -7,6 +7,7 @@ import {
   Button,
   Segment,
   Icon,
+  Grid,
 } from "semantic-ui-react";
 import Files from "react-files";
 import ImportLogModal from "../ImportLogModal/ImportLogModal";
@@ -40,6 +41,10 @@ class Import extends Component {
     errorLog: PropTypes.string.isRequired,
     selectedEnvironment: PropTypes.string.isRequired,
     uploadedFiles: PropTypes.array.isRequired,
+    // tags
+    tags: PropTypes.array.isRequired,
+    setImportTags: PropTypes.func.isRequired,
+    selectedImportTags: PropTypes.array.isRequired,
     // functions
     setTargetLocale: PropTypes.func.isRequired,
     submitForm: PropTypes.func.isRequired,
@@ -82,6 +87,10 @@ class Import extends Component {
       errorLog,
       selectedEnvironment,
       uploadedFiles,
+      // tags
+      tags,
+      setImportTags,
+      selectedImportTags,
       // functions from Integration
       setTargetLocale,
       submitForm,
@@ -94,18 +103,44 @@ class Import extends Component {
       <Segment color="grey">
         <Header as="h2">Import Translation</Header>
         <Form>
-          <p style={{ marginTop: "20px" }}>1. Choose your target language</p>
-          <Dropdown
-            placeholder="Select the target language"
-            selection
-            clearable
-            value={targetLocale}
-            options={locales}
-            onChange={setTargetLocale}
-          />
+          <Grid>
+            <Grid.Row columns={2}>
+              <Grid.Column>
+                <p style={{ marginTop: "20px" }}>
+                  1. Choose your target language
+                </p>
+                <Dropdown
+                  placeholder="Target language"
+                  fluid
+                  selection
+                  clearable
+                  value={targetLocale}
+                  options={locales}
+                  onChange={setTargetLocale}
+                />
+              </Grid.Column>
+              <Grid.Column>
+                <p style={{ marginTop: "20px" }}>
+                  2. Choose the tag(s) to apply on the entries on import
+                </p>
+                <Dropdown
+                  placeholder="Metadata tags"
+                  multiple
+                  selection
+                  clearable
+                  fluid
+                  search
+                  options={tags}
+                  onChange={setImportTags}
+                  value={selectedImportTags}
+                />
+              </Grid.Column>
+            </Grid.Row>
+          </Grid>
+
           <br />
           <p style={{ marginTop: "20px" }}>
-            2. Add the translations by choosing one of the two options below
+            3. Add the translations by choosing one of the two options below
           </p>
 
           <Form.TextArea
