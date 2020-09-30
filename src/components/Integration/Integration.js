@@ -11,6 +11,7 @@ import ExportDefault from "../ExportDefault/ExportDefault";
 import ExportMeta from "../ExportMeta/ExportMeta";
 import Import from "../Import/Import";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
+import EntryTagger from "../EntryTagger/EntryTagger";
 import ErrorMsg from "../ErrorMsg/ErrorMsg";
 import { createClient } from "contentful-management";
 
@@ -608,6 +609,90 @@ class Integration extends Component {
     this.setState({ translation: e.target.value });
   };
 
+  setEntryIdsForTagging = (e) => {
+    this.setState({ entryIdsForTagging: e.target.value });
+  };
+
+  handleApplyingTagsToEntries = () => {
+    const {
+      entryIdsForTagging,
+      environmentObject,
+      selectedTagsForTagging,
+    } = this.state;
+    const ids = entryIdsForTagging.split(",");
+
+    ids.forEach((id) => {
+      environmentObject.getEntry(id).then((entry) => {
+        const tagsToApply = selectedTagsForTagging.map((t) =>
+          this.tagIdToObject(t)
+        );
+
+        tagsToApply.forEach((tag) => {
+          if (!this.tagExists(entry, tag.sys.id)) {
+            entry.metadata.tags.push(tag);
+          }
+        });
+
+        entry
+          .update()
+          .then(() =>
+            this.setState({
+              confirmationModalOpen: true,
+              confirmationModalText: `Tags updated.`,
+              entryIdsForTagging: [],
+              selectedTagsForTagging: [],
+            })
+          )
+          .catch((error) =>
+            this.setState({
+              confirmationModalOpen: true,
+              confirmationModalText: `Error: ${error}.`,
+            })
+          );
+      });
+    });
+  };
+
+  handleRemovingTagsFromEntries = () => {
+    const {
+      entryIdsForTagging,
+      environmentObject,
+      selectedTagsForTagging,
+    } = this.state;
+    const ids = entryIdsForTagging.split(",");
+
+    ids.forEach((id) => {
+      environmentObject.getEntry(id).then((entry) => {
+        selectedTagsForTagging.forEach((tag) => {
+          if (this.tagExists(entry, tag)) {
+            // remove the ready tag
+            const i = entry.metadata.tags.findIndex(
+              (obj) => obj.sys.id === tag
+            );
+            entry.metadata.tags.splice(i, 1);
+          }
+        });
+
+        entry
+          .update()
+          .then(() =>
+            this.setState({
+              confirmationModalOpen: true,
+              confirmationModalText: `Tags updated.`,
+              entryIdsForTagging: [],
+              selectedTagsForTagging: [],
+            })
+          )
+          .catch((error) =>
+            this.setState({
+              confirmationModalOpen: true,
+              confirmationModalText: `Error: ${error}.`,
+            })
+          );
+      });
+    });
+  };
+
   writeAndShowImportLog = (updatedIds, failedIds, ignoredIds) => {
     const importLog = `Entries updated (${
       updatedIds.length
@@ -982,6 +1067,11 @@ class Integration extends Component {
     this.setState({ selectedImportMetaTags: value });
   };
 
+  setTagsForTagging = (e, { value }) => {
+    // Set the metatags used for export
+    this.setState({ selectedTagsForTagging: value });
+  };
+
   setAllFieldsValues = (e, { value }) =>
     this.setState({ allFieldsValues: value });
 
@@ -1118,6 +1208,23 @@ class Integration extends Component {
     );
   };
 
+  entryTagger = () => {
+    const { tags, entryIdsForTagging, selectedTagsForTagging } = this.state;
+
+    return (
+      <EntryTagger
+        entryIdsForTagging={entryIdsForTagging}
+        setEntryIdsForTagging={this.setEntryIdsForTagging}
+        // tags
+        tags={tags}
+        setTagsForTagging={this.setTagsForTagging}
+        selectedTagsForTagging={selectedTagsForTagging}
+        handleApplyingTagsToEntries={this.handleApplyingTagsToEntries}
+        handleRemovingTagsFromEntries={this.handleRemovingTagsFromEntries}
+      />
+    );
+  };
+
   render() {
     const {
       openSourceTextModal,
@@ -1146,6 +1253,7 @@ class Integration extends Component {
           handleCloseModal={this.handleCloseSourceTextModal}
         />
         {this.import()}
+        {this.entryTagger()}
         <Modal open={openUpdateExportedEntriesModal}>
           <Modal.Content image>
             <Image
