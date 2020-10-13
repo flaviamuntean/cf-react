@@ -6,8 +6,6 @@ import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
 import Helpers from "../../utils/Helpers";
-import Export from "../Export/Export";
-import ExportDefault from "../ExportDefault/ExportDefault";
 import ExportMeta from "../ExportMeta/ExportMeta";
 import Import from "../Import/Import";
 import SourceTextModal from "../SourceTextModal/SourceTextModal";
@@ -39,14 +37,6 @@ class Integration extends Component {
       selectedImportMetaTags: [],
       // export options
       contentTypes: [],
-      selectedContentType: "",
-      fields: [],
-      selectedFields: [],
-      // filters
-      filters: [],
-      selectedFilter: "",
-      filterValues: [],
-      selectedFilterValues: [],
       // locales
       locales: [],
       targetLocale: "",
@@ -63,10 +53,6 @@ class Integration extends Component {
       numberSourceEntries: 0,
       confirmationModalOpen: false,
       confirmationModalText: "",
-      // export default
-      allFieldsForFiltering: [],
-      selectedAllFieldsFilter: "",
-      allFieldsValues: "",
       // import upload
       uploadedJsonContent: {},
       uploadedFiles: [],
@@ -115,16 +101,6 @@ class Integration extends Component {
       selectedEnvironment: "",
       environmentObject: null,
       contentTypes: [],
-      selectedContentType: "",
-      fields: [],
-      selectedFields: [],
-      filters: [],
-      selectedFilter: "",
-      filterValues: [],
-      selectedFilterValues: [],
-      allFieldsForFiltering: [],
-      selectedAllFieldsFilter: "",
-      allFieldsValues: "",
       showErrorMsg: false,
       errorMsgContent: "",
       tags: [],
@@ -228,16 +204,6 @@ class Integration extends Component {
       selectedEnvironment: "",
       sourceLocale: "",
       contentTypes: [],
-      selectedContentType: "",
-      fields: [],
-      selectedFields: [],
-      filters: [],
-      selectedFilter: "",
-      filterValues: [],
-      selectedFilterValues: [],
-      allFieldsForFiltering: [],
-      selectedAllFieldsFilter: "",
-      allFieldsValues: "",
     });
     if (value) {
       this.managementClient
@@ -272,16 +238,6 @@ class Integration extends Component {
     });
     this.setState({
       contentTypes: [],
-      selectedContentType: "",
-      fields: [],
-      selectedFields: [],
-      filters: [],
-      selectedFilter: "",
-      filterValues: [],
-      selectedFilterValues: [],
-      allFieldsForFiltering: [],
-      selectedAllFieldsFilter: "",
-      allFieldsValues: "",
       tags: [],
       selectedMetaTags: [],
     });
@@ -304,164 +260,15 @@ class Integration extends Component {
         const dropdownCategories = Helpers.generateContentTypesDropdown(
           contentTypes
         );
-        this.setState(
-          { contentTypes: dropdownCategories },
-          this.getAllFieldsForAllContentTypes
-        );
+        this.setState({ contentTypes: dropdownCategories });
       })
       .catch((e) => {
         console.log(e);
       });
   };
 
-  setContentType = (e, { value }) => {
-    // Set the content type, but remove the valuses for all the following dropdowns
-    this.setState({
-      selectedContentType: value,
-      fields: [],
-      selectedFields: [],
-      filters: [],
-      selectedFilter: "",
-      selectedFilterValues: [],
-    });
-
-    if (value) {
-      this.getFields(value);
-      this.getFilters(value);
-    }
-  };
-
-  getFields = async (contentType) => {
-    const { environmentObject } = this.state;
-
-    const response = await (await environmentObject.getContentType(contentType))
-      .fields;
-    const selectedFields = Helpers.filterByLocalizable(response);
-    const dropdownCategories = Helpers.generateFieldsDropdown(selectedFields);
-    this.setState({ fields: dropdownCategories });
-  };
-
-  setFields = (e, { value }) => {
-    this.setState({ selectedFields: value });
-  };
-
   setSourceLocale = (e, { value }) => {
     this.setState({ sourceLocale: value });
-  };
-
-  // EXPORT FILTERS
-
-  getFilters = async (contentType) => {
-    const { environmentObject } = this.state;
-
-    const response = await (await environmentObject.getContentType(contentType))
-      .fields;
-    const dropdownCategories = Helpers.generateFiltersDropdown(response);
-    this.setState({ filters: dropdownCategories });
-  };
-
-  setFilter = (e, { value }) => {
-    const { selectedContentType } = this.state;
-    // Set the value of the filter, but remove any values that were previously selected for this filter
-    this.setState({
-      selectedFilter: value,
-      selectedFilterValues: [],
-    });
-
-    if (value) {
-      this.getFilterValues(selectedContentType, value);
-    }
-  };
-
-  getFilterValues = async (chosenContentType, chosenField) => {
-    const { environmentObject, sourceLocale } = this.state;
-    const entries = await environmentObject.getEntries({
-      content_type: chosenContentType,
-      limit: 1000,
-    });
-
-    const uniqueFieldValues = Helpers.getUniqueFieldValues(
-      entries,
-      chosenField,
-      sourceLocale
-    );
-
-    const dropdownCategories = Helpers.generateFilterValuesDropdown(
-      uniqueFieldValues
-    );
-    this.setState({ filterValues: dropdownCategories });
-  };
-
-  setFilterValues = (e, { value }) => {
-    if (value) {
-      this.setState({ selectedFilterValues: value });
-    } else {
-      this.setState({ selectedFilterValues: [] });
-    }
-  };
-
-  // HANDLE EXPORT
-
-  handleExport = async () => {
-    const {
-      environmentObject,
-      selectedContentType,
-      selectedFilterValues,
-      selectedFilter,
-      sourceLocale,
-      selectedFields,
-    } = this.state;
-
-    const selectedFilterValuesString = selectedFilterValues.join(",");
-    const query = Helpers.generateExportOptionsApiQuery(
-      selectedFilterValues,
-      selectedFilter
-    );
-    const fieldsSelector = Helpers.generateFieldsSelector(selectedFields);
-
-    environmentObject
-      .getEntries({
-        content_type: selectedContentType,
-        select: fieldsSelector,
-        locale: sourceLocale,
-        [query]: selectedFilterValuesString,
-        limit: 1000,
-      })
-      .then((entries) => {
-        let numberExportedEntries = 0;
-
-        // keep only the fields and the sys info
-        const localizableEntries = entries.items
-          .map((item) => {
-            const id = item.sys.id;
-            if (item.fields) {
-              const fields = Helpers.filterByLang(
-                item.fields,
-                this.state.sourceLocale
-              );
-
-              if (
-                Object.keys(fields).length === 0 &&
-                fields.constructor === Object
-              ) {
-                return null;
-              } else {
-                fields.entryId = id;
-                numberExportedEntries++;
-                return fields;
-              }
-            }
-            return null;
-          })
-          .filter((entry) => entry !== null);
-
-        this.setState((prevState, props) => ({
-          sourceText: JSON.stringify(localizableEntries, null, 2),
-          openSourceTextModal: true,
-          numberSourceEntries:
-            prevState.numberSourceEntries + numberExportedEntries,
-        }));
-      });
   };
 
   handleCloseSourceTextModal = () => {
@@ -770,91 +577,6 @@ class Integration extends Component {
     });
   };
 
-  handleExportDefault = () => {
-    const {
-      contentTypes,
-      environmentObject,
-      allFieldsValues,
-      selectedAllFieldsFilter,
-    } = this.state;
-
-    let allContentForExport = [];
-    // map content types into an array of only the content type ids
-    const contentTypesArray = contentTypes.map(
-      (contentType) => contentType.value
-    );
-    // for each content type
-    contentTypesArray.forEach(async (contentType) => {
-      // get the localizable fields
-      const response = await (
-        await environmentObject.getContentType(contentType)
-      ).fields;
-      const localizable = Helpers.filterByLocalizable(response);
-
-      // if the content type has any localizable fields
-      if (localizable.length > 0) {
-        // combine the ids of the localizable fields into the query needed for export
-        const localizableFields = localizable.map((field) => field.id);
-
-        const fieldsForExport = localizableFields.map(
-          (field) => `fields.${field}`
-        );
-
-        const query = Helpers.generateExportDefaultApiQuery(
-          allFieldsValues,
-          selectedAllFieldsFilter
-        );
-
-        // export all entries for the content type, but only the localizable fields + filters
-        environmentObject
-          .getEntries({
-            content_type: contentType,
-            select: fieldsForExport,
-            [query]: allFieldsValues,
-            limit: 1000,
-          })
-          .then((entries) => {
-            // keep only the fields and the sys info
-            let numberExportedEntries = 0;
-
-            const localizableEntries = entries.items
-              .map((item) => {
-                const id = item.sys.id;
-                if (item.fields) {
-                  const fields = Helpers.filterByLang(
-                    item.fields,
-                    this.state.sourceLocale
-                  );
-
-                  if (
-                    Object.keys(fields).length === 0 &&
-                    fields.constructor === Object
-                  ) {
-                    return null;
-                  } else {
-                    fields.entryId = id;
-                    numberExportedEntries++;
-                    return fields;
-                  }
-                }
-                return null;
-              })
-              .filter((entry) => entry !== null);
-
-            allContentForExport.push(localizableEntries);
-
-            this.setState((prevState, props) => ({
-              sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
-              openSourceTextModal: true,
-              numberSourceEntries:
-                prevState.numberSourceEntries + numberExportedEntries,
-            }));
-          })
-          .catch((error) => console.log(error));
-      }
-    });
-  };
-
   handleMetaExport = async () => {
     const { contentTypes, environmentObject, selectedMetaTags } = this.state;
 
@@ -940,46 +662,6 @@ class Integration extends Component {
     );
   };
 
-  getAllFieldsForAllContentTypes = () => {
-    // get all content types
-    const { contentTypes, environmentObject } = this.state;
-    // map them into an array of only the content type ids
-    const contentTypesArray = contentTypes.map(
-      (contentType) => contentType.value
-    );
-    // for each content type
-    const allFields = contentTypesArray.map((contentType) =>
-      // get the localizable fields
-      environmentObject
-        .getContentType(contentType)
-        .then((cType) => cType.fields)
-        .catch(console.error)
-    );
-
-    Promise.all(allFields).then((values) => {
-      const response = values.flat();
-
-      const fieldIDs = response.map((field) => field.id);
-      const uniqueFilterIDs = fieldIDs.filter(
-        (v, i) => fieldIDs.indexOf(v) === i
-      );
-
-      const dropdownCategories = Helpers.generateAllFieldsDropdown(
-        uniqueFilterIDs
-      );
-
-      this.setState({ allFieldsForFiltering: dropdownCategories });
-    });
-  };
-
-  setAllFieldsFilter = (e, { value }) => {
-    // Set the value of the filter, but remove any values that were previously added for this filter
-    this.setState({
-      selectedAllFieldsFilter: value,
-      allFieldsValues: "",
-    });
-  };
-
   setAllTags = (e, { value }) => {
     // Set the metatags used for export
     this.setState({ selectedMetaTags: value });
@@ -993,39 +675,6 @@ class Integration extends Component {
   setTagsForTagging = (e, { value }) => {
     // Set the metatags used for export
     this.setState({ selectedTagsForTagging: value });
-  };
-
-  setAllFieldsValues = (e, { value }) =>
-    this.setState({ allFieldsValues: value });
-
-  exportDefault = () => {
-    const {
-      selectedEnvironment,
-      contentTypes,
-      allFieldsForFiltering,
-      selectedAllFieldsFilter,
-      allFieldsValues,
-      locales,
-      sourceLocale,
-    } = this.state;
-
-    return (
-      <ExportDefault
-        selectedEnvironment={selectedEnvironment}
-        contentTypes={contentTypes}
-        locales={locales}
-        sourceLocale={sourceLocale}
-        setSourceLocale={this.setSourceLocale}
-        // functions
-        handleExportDefault={this.handleExportDefault}
-        // new
-        filters={allFieldsForFiltering}
-        setFilter={this.setAllFieldsFilter}
-        selectedFilter={selectedAllFieldsFilter}
-        allFieldsValues={allFieldsValues}
-        setAllFieldsValues={this.setAllFieldsValues}
-      />
-    );
   };
 
   exportMeta = () => {
@@ -1051,44 +700,6 @@ class Integration extends Component {
         tags={tags}
         setTags={this.setAllTags}
         selectedTags={selectedMetaTags}
-      />
-    );
-  };
-
-  export = () => {
-    const {
-      contentTypes,
-      selectedContentType,
-      fields,
-      selectedFields,
-      filters,
-      selectedFilter,
-      filterValues,
-      selectedFilterValues,
-      selectedEnvironment,
-      locales,
-      sourceLocale,
-    } = this.state;
-
-    return (
-      <Export
-        contentTypes={contentTypes}
-        selectedContentType={selectedContentType}
-        fields={fields}
-        selectedFields={selectedFields}
-        filters={filters}
-        selectedFilter={selectedFilter}
-        filterValues={filterValues}
-        selectedFilterValues={selectedFilterValues}
-        selectedEnvironment={selectedEnvironment}
-        locales={locales}
-        sourceLocale={sourceLocale}
-        setSourceLocale={this.setSourceLocale}
-        setContentType={this.setContentType}
-        setFields={this.setFields}
-        setFilter={this.setFilter}
-        setFilterValues={this.setFilterValues}
-        handleExport={this.handleExport}
       />
     );
   };
@@ -1163,9 +774,7 @@ class Integration extends Component {
       <div>
         <ErrorMsg content={errorMsgContent} visible={showErrorMsg} />
         {this.displayAuthDetails()}
-        {/* {this.exportDefault()} */}
         {this.exportMeta()}
-        {/* {this.export()} */}
         <SourceTextModal
           open={openSourceTextModal}
           loading={sourceTextModalLoading}
