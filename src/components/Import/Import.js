@@ -43,13 +43,12 @@ class Import extends Component {
     uploadedFiles: PropTypes.array.isRequired,
     // tags
     tags: PropTypes.array.isRequired,
-    setImportTags: PropTypes.func.isRequired,
-    selectedImportTags: PropTypes.array.isRequired,
+    selectedImportTagsToApply: PropTypes.array.isRequired,
+    selectedImportTagsToRemove: PropTypes.array.isRequired,
     // functions
-    setTargetLocale: PropTypes.func.isRequired,
+    onFormFieldChange: PropTypes.func.isRequired,
     submitForm: PropTypes.func.isRequired,
     handleCloseImportLogModal: PropTypes.func.isRequired,
-    setTranslation: PropTypes.func.isRequired,
     handleUploadTargetFiles: PropTypes.func.isRequired,
   };
 
@@ -89,13 +88,12 @@ class Import extends Component {
       uploadedFiles,
       // tags
       tags,
-      setImportTags,
-      selectedImportTags,
+      onFormFieldChange,
+      selectedImportTagsToApply,
+      selectedImportTagsToRemove,
       // functions from Integration
-      setTargetLocale,
       submitForm,
       handleCloseImportLogModal,
-      setTranslation,
       handleUploadTargetFiles,
     } = this.props;
 
@@ -111,28 +109,46 @@ class Import extends Component {
                 </p>
                 <Dropdown
                   placeholder="Target language"
+                  name="targetLocale"
                   fluid
                   selection
                   clearable
                   value={targetLocale}
                   options={locales}
-                  onChange={setTargetLocale}
+                  onChange={onFormFieldChange}
                 />
               </Grid.Column>
+            </Grid.Row>
+            <p style={{ marginTop: "20px" }}>
+              2. Choose the tag(s) to apply/remove on the entries on import
+            </p>
+            <Grid.Row columns={2}>
               <Grid.Column>
-                <p style={{ marginTop: "20px" }}>
-                  2. Choose the tag(s) to apply on the entries on import
-                </p>
                 <Dropdown
-                  placeholder="Metadata tags"
+                  placeholder="Metadata tags to apply"
+                  name="metaTagsToApply"
                   multiple
                   selection
                   clearable
                   fluid
                   search
                   options={tags}
-                  onChange={setImportTags}
-                  value={selectedImportTags}
+                  onChange={onFormFieldChange}
+                  value={selectedImportTagsToApply}
+                />
+              </Grid.Column>
+              <Grid.Column>
+                <Dropdown
+                  placeholder="Metadata tags to remove"
+                  name="metaTagsToRemove"
+                  multiple
+                  selection
+                  clearable
+                  fluid
+                  search
+                  options={tags}
+                  onChange={onFormFieldChange}
+                  value={selectedImportTagsToRemove}
                 />
               </Grid.Column>
             </Grid.Row>
@@ -145,8 +161,9 @@ class Import extends Component {
 
           <Form.TextArea
             placeholder="Paste here the translated .json content..."
+            name="translation"
             value={translation}
-            onChange={(e) => setTranslation(e)}
+            onChange={onFormFieldChange}
             disabled={uploadedFiles.length > 0}
           />
 

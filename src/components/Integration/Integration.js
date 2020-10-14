@@ -34,7 +34,10 @@ class Integration extends Component {
       // tags
       tags: [],
       selectedMetaTags: [],
-      selectedImportMetaTags: [],
+      metaTagsToApply: [],
+      metaTagsToRemove: [],
+      entryIdsForTagging: "",
+      selectedTagsForTagging: [],
       // export options
       contentTypes: [],
       // locales
@@ -321,10 +324,6 @@ class Integration extends Component {
       });
   };
 
-  setTargetLocale = (e, { value }) => {
-    this.setState({ targetLocale: value });
-  };
-
   uploadTargetFiles = (files) => {
     // Read the last uploaded file. To be changed to a method that allows iterrating over multiple files.
     if (files.length) {
@@ -333,10 +332,6 @@ class Integration extends Component {
     } else {
       this.setState({ uploadedFiles: [], uploadedJsonContent: {} });
     }
-  };
-
-  setTranslation = (e) => {
-    this.setState({ translation: e.target.value });
   };
 
   setEntryIdsForTagging = (e) => {
@@ -513,25 +508,13 @@ class Integration extends Component {
   };
 
   updateMetaTagsOnImport = (entry) => {
-    const { selectedImportMetaTags } = this.state;
+    const { metaTagsToApply, metaTagsToRemove } = this.state;
 
-    const tagsToApply = selectedImportMetaTags.map((t) =>
-      this.tagIdToObject(t)
-    );
+    const tagsToApply = metaTagsToApply.map((t) => this.tagIdToObject(t));
 
-    if (this.tagExists(entry, "translations_ContentReadyForTranslation")) {
-      const i = entry.metadata.tags.findIndex(
-        (obj) => obj.sys.id === "translations_ContentReadyForTranslation"
-      );
-      entry.metadata.tags.splice(i, 1);
-    }
-
-    if (this.tagExists(entry, "translations_TranslationInProgress")) {
-      const i = entry.metadata.tags.findIndex(
-        (obj) => obj.sys.id === "translations_TranslationInProgress"
-      );
-      entry.metadata.tags.splice(i, 1);
-    }
+    metaTagsToRemove.forEach((tag) => {
+      this.removeTag(entry, tag);
+    });
 
     tagsToApply.forEach((tag) => {
       if (!this.tagExists(entry, tag.sys.id)) {
@@ -550,6 +533,13 @@ class Integration extends Component {
       id: t,
     },
   });
+
+  removeTag = (entry, tagName) => {
+    if (this.tagExists(entry, tagName)) {
+      const i = entry.metadata.tags.findIndex((obj) => obj.sys.id === tagName);
+      entry.metadata.tags.splice(i, 1);
+    }
+  };
 
   submitForm = () => {
     const { translation, uploadedJsonContent } = this.state;
@@ -573,7 +563,8 @@ class Integration extends Component {
       openImportLogModal: false,
       importLog: "",
       errorLog: "",
-      selectedImportMetaTags: [],
+      metaTagsToApply: [],
+      metaTagsToRemove: [],
     });
   };
 
@@ -667,9 +658,8 @@ class Integration extends Component {
     this.setState({ selectedMetaTags: value });
   };
 
-  setAllImportTags = (e, { value }) => {
-    // Set the metatags used for export
-    this.setState({ selectedImportMetaTags: value });
+  handleFormFieldChange = (e, { name, value }) => {
+    this.setState({ [name]: value });
   };
 
   setTagsForTagging = (e, { value }) => {
@@ -715,7 +705,8 @@ class Integration extends Component {
       selectedEnvironment,
       uploadedFiles,
       tags,
-      selectedImportMetaTags,
+      metaTagsToApply,
+      metaTagsToRemove,
     } = this.state;
 
     return (
@@ -730,13 +721,12 @@ class Integration extends Component {
         uploadedFiles={uploadedFiles}
         // tags
         tags={tags}
-        setImportTags={this.setAllImportTags}
-        selectedImportTags={selectedImportMetaTags}
+        onFormFieldChange={this.handleFormFieldChange}
+        selectedImportTagsToApply={metaTagsToApply}
+        selectedImportTagsToRemove={metaTagsToRemove}
         // functions
-        setTargetLocale={this.setTargetLocale}
         submitForm={this.submitForm}
         handleCloseImportLogModal={this.handleCloseImportLogModal}
-        setTranslation={this.setTranslation}
         handleUploadTargetFiles={this.uploadTargetFiles}
       />
     );
