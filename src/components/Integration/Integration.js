@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import { Modal, Header, Icon } from "semantic-ui-react";
 import AuthDetails from "../AuthDetails/AuthDetails";
 import CookieUtils from "../../utils/CookieUtils";
 import WindowUtils from "../../utils/WindowUtils";
@@ -33,8 +32,6 @@ class Integration extends Component {
       // tags
       tags: [],
       selectedMetaTags: [],
-      entryIdsForTagging: "",
-      selectedTagsForTagging: [],
       // export options
       contentTypes: [],
       // locales
@@ -46,8 +43,6 @@ class Integration extends Component {
       sourceText: "",
       sourceIds: [],
       numberSourceEntries: 0,
-      confirmationModalOpen: false,
-      confirmationModalText: "",
       // errors
       showErrorMsg: false,
       errorMsgContent: "",
@@ -258,32 +253,6 @@ class Integration extends Component {
     });
   };
 
-  confirmationModal = () => {
-    const { confirmationModalOpen, confirmationModalText } = this.state;
-    return (
-      <Modal
-        basic
-        open={confirmationModalOpen}
-        size="small"
-        onClose={() => this.setState({ confirmationModalOpen: false })}
-      >
-        <Header icon>
-          <Icon
-            name={
-              confirmationModalText.includes("Error")
-                ? "exclamation"
-                : "checkmark"
-            }
-          />
-          {confirmationModalText.includes("Error") ? "Error" : "Success"}
-        </Header>
-        <Modal.Content style={{ textAlign: "center" }}>
-          {confirmationModalText}
-        </Modal.Content>
-      </Modal>
-    );
-  };
-
   getLocales = (environment) => {
     environment
       .getLocales()
@@ -295,101 +264,6 @@ class Integration extends Component {
         console.log(e);
       });
   };
-
-  setEntryIdsForTagging = (e) => {
-    this.setState({ entryIdsForTagging: e.target.value });
-  };
-
-  handleApplyingTagsToEntries = () => {
-    const {
-      entryIdsForTagging,
-      environmentObject,
-      selectedTagsForTagging,
-    } = this.state;
-    const ids = entryIdsForTagging.split(",");
-
-    ids.forEach((id) => {
-      environmentObject.getEntry(id).then((entry) => {
-        const tagsToApply = selectedTagsForTagging.map((t) =>
-          this.tagIdToObject(t)
-        );
-
-        tagsToApply.forEach((tag) => {
-          if (!this.tagExists(entry, tag.sys.id)) {
-            entry.metadata.tags.push(tag);
-          }
-        });
-
-        entry
-          .update()
-          .then(() =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Tags updated.`,
-              entryIdsForTagging: [],
-              selectedTagsForTagging: [],
-            })
-          )
-          .catch((error) =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Error: ${error}.`,
-            })
-          );
-      });
-    });
-  };
-
-  handleRemovingTagsFromEntries = () => {
-    const {
-      entryIdsForTagging,
-      environmentObject,
-      selectedTagsForTagging,
-    } = this.state;
-    const ids = entryIdsForTagging.split(",");
-
-    ids.forEach((id) => {
-      environmentObject.getEntry(id).then((entry) => {
-        selectedTagsForTagging.forEach((tag) => {
-          if (this.tagExists(entry, tag)) {
-            // remove the ready tag
-            const i = entry.metadata.tags.findIndex(
-              (obj) => obj.sys.id === tag
-            );
-            entry.metadata.tags.splice(i, 1);
-          }
-        });
-
-        entry
-          .update()
-          .then(() =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Tags updated.`,
-              entryIdsForTagging: [],
-              selectedTagsForTagging: [],
-            })
-          )
-          .catch((error) =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Error: ${error}.`,
-            })
-          );
-      });
-    });
-  };
-
-  tagExists = (entry, tagName) =>
-    entry.metadata.tags.some((el) => el.sys.id === tagName);
-
-  tagIdToObject = (t) => ({
-    sys: {
-      type: "Link",
-      linkType: "Tag",
-      id: t,
-    },
-  });
 
   handleMetaExport = async () => {
     const { contentTypes, environmentObject, selectedMetaTags } = this.state;
@@ -481,11 +355,6 @@ class Integration extends Component {
     this.setState({ selectedMetaTags: value });
   };
 
-  setTagsForTagging = (e, { value }) => {
-    // Set the metatags used for export
-    this.setState({ selectedTagsForTagging: value });
-  };
-
   exportMeta = () => {
     const {
       selectedEnvironment,
@@ -526,20 +395,9 @@ class Integration extends Component {
   };
 
   entryTagger = () => {
-    const { tags, entryIdsForTagging, selectedTagsForTagging } = this.state;
+    const { tags, environmentObject } = this.state;
 
-    return (
-      <EntryTagger
-        entryIdsForTagging={entryIdsForTagging}
-        setEntryIdsForTagging={this.setEntryIdsForTagging}
-        // tags
-        tags={tags}
-        setTagsForTagging={this.setTagsForTagging}
-        selectedTagsForTagging={selectedTagsForTagging}
-        handleApplyingTagsToEntries={this.handleApplyingTagsToEntries}
-        handleRemovingTagsFromEntries={this.handleRemovingTagsFromEntries}
-      />
-    );
+    return <EntryTagger tags={tags} environmentObject={environmentObject} />;
   };
 
   render() {
@@ -568,7 +426,6 @@ class Integration extends Component {
         />
         {this.import()}
         {this.entryTagger()}
-        {this.confirmationModal()}
       </div>
     );
   }
