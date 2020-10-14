@@ -107,8 +107,15 @@ class Integration extends Component {
   getMetaTags = (environmentObject) => {
     environmentObject
       .getTags()
-      .then((tags) =>
-        this.setState({ tags: Helpers.generateTagsForDropdown(tags) })
+      .then((tags) => {
+        this.setState({ tags: Helpers.generateTagsForDropdown(tags) });
+      })
+      .catch(() =>
+        this.setState({
+          showErrorMsg: true,
+          errorMsgContent:
+            "Something went wrong fetching the tags. Please refresh the page and try again.",
+        })
       );
   };
 

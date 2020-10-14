@@ -144,7 +144,7 @@ class ExportMeta extends Component {
 
     const { selectedMetaTags, sourceLocale } = this.state;
 
-    if (tags.length > 0) {
+    if (contentTypes.length > 0) {
       return (
         <Grid.Row columns={2}>
           <Grid.Column>
@@ -174,16 +174,6 @@ class ExportMeta extends Component {
               onChange={this.handleFormFieldChange}
               value={selectedMetaTags}
             />
-          </Grid.Column>
-        </Grid.Row>
-      );
-    } else if (contentTypes.length > 0 && tags.length === 0) {
-      return (
-        <Grid.Row columns={1}>
-          <Grid.Column>
-            <Loader active inline="centered">
-              Loading Filters
-            </Loader>
           </Grid.Column>
         </Grid.Row>
       );
