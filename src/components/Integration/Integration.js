@@ -6,7 +6,6 @@ import WindowUtils from "../../utils/WindowUtils";
 import Helpers from "../../utils/Helpers";
 import ExportMeta from "../ExportMeta/ExportMeta";
 import Import from "../Import/Import";
-import SourceTextModal from "../SourceTextModal/SourceTextModal";
 import EntryTagger from "../EntryTagger/EntryTagger";
 import ErrorMsg from "../ErrorMsg/ErrorMsg";
 import { createClient } from "contentful-management";
@@ -37,12 +36,6 @@ class Integration extends Component {
       // locales
       locales: [],
       sourceLocale: "",
-      // modals
-      openSourceTextModal: false,
-      sourceTextModalLoading: false,
-      sourceText: "",
-      sourceIds: [],
-      numberSourceEntries: 0,
       // errors
       showErrorMsg: false,
       errorMsgContent: "",
@@ -239,20 +232,6 @@ class Integration extends Component {
       });
   };
 
-  setSourceLocale = (e, { value }) => {
-    this.setState({ sourceLocale: value });
-  };
-
-  handleCloseSourceTextModal = () => {
-    this.setState({
-      openSourceTextModal: false,
-      sourceText: "",
-      numberSourceEntries: 0,
-      sourceLocale: "",
-      selectedMetaTags: [],
-    });
-  };
-
   getLocales = (environment) => {
     environment
       .getLocales()
@@ -265,119 +244,20 @@ class Integration extends Component {
       });
   };
 
-  handleMetaExport = async () => {
-    const { contentTypes, environmentObject, selectedMetaTags } = this.state;
-
-    this.setState({ openSourceTextModal: true, sourceTextModalLoading: true });
-
-    const tagsForExport = Helpers.generateTagsSelector(selectedMetaTags);
-
-    let allContentForExport = [];
-    // map content types into an array of only the content type ids
-    const contentTypesArray = contentTypes.map(
-      (contentType) => contentType.value
-    );
-
-    // for each content type
-    let promises = contentTypesArray.map(async (contentType) => {
-      // get the localizable fields
-      const response = await (
-        await environmentObject.getContentType(contentType)
-      ).fields;
-      const localizable = Helpers.filterByLocalizable(response);
-
-      // if the content type has any localizable fields
-      if (localizable.length > 0) {
-        // combine the ids of the localizable fields into the query needed for export
-        const localizableFields = localizable.map((field) => field.id);
-
-        const fieldsForExport = localizableFields.map(
-          (field) => `fields.${field}`
-        );
-
-        // export all entries for the content type, but only the localizable fields + filters
-        environmentObject
-          .getEntries({
-            content_type: contentType,
-            select: fieldsForExport,
-            limit: 1000,
-            "metadata.tags.sys.id[all]": tagsForExport,
-          })
-          .then((entries) => {
-            // keep only the fields and the sys info
-            let numberExportedEntries = 0;
-
-            const localizableEntries = entries.items
-              .map((item) => {
-                const id = item.sys.id;
-                if (item.fields) {
-                  const fields = Helpers.filterByLang(
-                    item.fields,
-                    this.state.sourceLocale
-                  );
-
-                  if (
-                    Object.keys(fields).length === 0 &&
-                    fields.constructor === Object
-                  ) {
-                    return null;
-                  } else {
-                    fields.entryId = id;
-                    numberExportedEntries++;
-                    return fields;
-                  }
-                }
-                return null;
-              })
-              .filter((entry) => entry !== null);
-
-            allContentForExport.push(localizableEntries);
-
-            this.setState((prevState, props) => ({
-              sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
-              sourceIds: allContentForExport.flat().map((e) => e.entryId),
-              numberSourceEntries:
-                prevState.numberSourceEntries + numberExportedEntries,
-            }));
-          })
-          .catch((error) => {
-            console.log(error);
-          });
-      }
-    });
-    Promise.all(promises).then(() =>
-      this.setState({ sourceTextModalLoading: false })
-    );
-  };
-
-  setAllTags = (e, { value }) => {
-    // Set the metatags used for export
-    this.setState({ selectedMetaTags: value });
+  addToState = (name, value) => {
+    this.setState({ [name]: value });
   };
 
   exportMeta = () => {
-    const {
-      selectedEnvironment,
-      contentTypes,
-      selectedMetaTags,
-      locales,
-      sourceLocale,
-      tags,
-    } = this.state;
+    const { contentTypes, locales, tags, environmentObject } = this.state;
 
     return (
       <ExportMeta
-        selectedEnvironment={selectedEnvironment}
+        environmentObject={environmentObject}
+        addToIntegrationState={this.addToState}
         contentTypes={contentTypes}
         locales={locales}
-        sourceLocale={sourceLocale}
-        setSourceLocale={this.setSourceLocale}
-        // functions
-        handleExportDefault={this.handleMetaExport}
-        // new
         tags={tags}
-        setTags={this.setAllTags}
-        selectedTags={selectedMetaTags}
       />
     );
   };
@@ -401,29 +281,13 @@ class Integration extends Component {
   };
 
   render() {
-    const {
-      openSourceTextModal,
-      sourceText,
-      numberSourceEntries,
-      showErrorMsg,
-      errorMsgContent,
-      sourceTextModalLoading,
-      sourceIds,
-    } = this.state;
+    const { showErrorMsg, errorMsgContent } = this.state;
 
     return (
       <div>
         <ErrorMsg content={errorMsgContent} visible={showErrorMsg} />
         {this.displayAuthDetails()}
         {this.exportMeta()}
-        <SourceTextModal
-          open={openSourceTextModal}
-          loading={sourceTextModalLoading}
-          sourceText={sourceText}
-          sourceIds={sourceIds}
-          numberSourceEntries={numberSourceEntries}
-          handleCloseModal={this.handleCloseSourceTextModal}
-        />
         {this.import()}
         {this.entryTagger()}
       </div>
