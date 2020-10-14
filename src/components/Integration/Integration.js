@@ -1,5 +1,4 @@
 import React, { Component } from "react";
-import isEqual from "lodash/isEqual";
 import PropTypes from "prop-types";
 import { Modal, Header, Icon } from "semantic-ui-react";
 import AuthDetails from "../AuthDetails/AuthDetails";
@@ -34,49 +33,24 @@ class Integration extends Component {
       // tags
       tags: [],
       selectedMetaTags: [],
-      metaTagsToApply: [],
-      metaTagsToRemove: [],
       entryIdsForTagging: "",
       selectedTagsForTagging: [],
       // export options
       contentTypes: [],
       // locales
       locales: [],
-      targetLocale: "",
       sourceLocale: "",
       // modals
       openSourceTextModal: false,
       sourceTextModalLoading: false,
-      openImportLogModal: false,
-      translation: "",
       sourceText: "",
       sourceIds: [],
-      importLog: "",
-      errorLog: "",
       numberSourceEntries: 0,
       confirmationModalOpen: false,
       confirmationModalText: "",
-      // import upload
-      uploadedJsonContent: {},
-      uploadedFiles: [],
       // errors
       showErrorMsg: false,
       errorMsgContent: "",
-    };
-
-    this.fileReader = new FileReader();
-    this.fileReader.onload = (event) => {
-      try {
-        this.setState({ uploadedJsonContent: JSON.parse(event.target.result) });
-      } catch (error) {
-        const importLog = "Invalid json file. Upload failed.";
-        this.setState({
-          importLog,
-          openImportLogModal: true,
-          uploadedFiles: [],
-          uploadedJsonContent: {},
-        });
-      }
     };
   }
 
@@ -310,8 +284,6 @@ class Integration extends Component {
     );
   };
 
-  // IMPORT
-
   getLocales = (environment) => {
     environment
       .getLocales()
@@ -322,16 +294,6 @@ class Integration extends Component {
       .catch((e) => {
         console.log(e);
       });
-  };
-
-  uploadTargetFiles = (files) => {
-    // Read the last uploaded file. To be changed to a method that allows iterrating over multiple files.
-    if (files.length) {
-      this.setState({ uploadedFiles: files });
-      this.fileReader.readAsText(files[files.length - 1]);
-    } else {
-      this.setState({ uploadedFiles: [], uploadedJsonContent: {} });
-    }
   };
 
   setEntryIdsForTagging = (e) => {
@@ -418,111 +380,6 @@ class Integration extends Component {
     });
   };
 
-  writeAndShowImportLog = (updatedIds, failedIds, ignoredIds) => {
-    const importLog = `Entries updated (${
-      updatedIds.length
-    }): ${updatedIds.join(", ")}\n\nEntries failed (${
-      failedIds.length
-    }): ${failedIds.join(
-      ", "
-    )}\n\nEntries ignored - translation missing or does not differ from source text (${
-      ignoredIds.length
-    }): ${ignoredIds.join(", ")}`;
-
-    this.setState({ importLog, openImportLogModal: true });
-  };
-
-  importContent = (parsedTranslation) => {
-    const { environmentObject, targetLocale } = this.state;
-
-    let updatedIds = [];
-    let failedIds = [];
-    let ignoredIds = [];
-
-    parsedTranslation.forEach((entryItem) => {
-      let keys = Object.keys(entryItem);
-      // Remove the id from the content to be imported
-      keys = keys.splice(0, keys.length - 1);
-
-      environmentObject
-        .getEntry(entryItem.entryId)
-        .then((entry) => {
-          let needsUpdating = false;
-          keys.forEach((key) => {
-            if (
-              // If the imported field has content for the chosen target language
-              entryItem[key][targetLocale] !== undefined &&
-              // And the translation is different to the source text
-              !isEqual(
-                entry.fields[key][targetLocale],
-                entryItem[key][targetLocale]
-              )
-            ) {
-              // Update the source text
-              needsUpdating = true;
-              entry.fields[key][targetLocale] = entryItem[key][targetLocale];
-              this.updateMetaTagsOnImport(entry);
-            }
-          });
-
-          if (needsUpdating) {
-            entry
-              .update()
-              .then(() => {
-                updatedIds.push(entryItem.entryId);
-                this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
-              })
-              .catch((e) => {
-                console.log(e);
-                this.setState((st) => ({
-                  errorLog:
-                    st.errorLog +
-                    `${e}\n\n=========================================================================================\n\n`,
-                }));
-                failedIds.push(entryItem.entryId);
-                this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
-              });
-          } else {
-            ignoredIds.push(entryItem.entryId);
-            this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
-          }
-        })
-        .catch((e) => {
-          console.log(e);
-          this.setState((st) => ({
-            errorLog:
-              st.errorLog +
-              `${e}\n\n=========================================================================================\n\n`,
-          }));
-          failedIds.push(entryItem.entryId);
-          this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
-        });
-    });
-
-    this.setState({
-      translation: "",
-      targetLocale: "",
-      uploadedJsonContent: {},
-      uploadedFiles: [],
-    });
-  };
-
-  updateMetaTagsOnImport = (entry) => {
-    const { metaTagsToApply, metaTagsToRemove } = this.state;
-
-    const tagsToApply = metaTagsToApply.map((t) => this.tagIdToObject(t));
-
-    metaTagsToRemove.forEach((tag) => {
-      this.removeTag(entry, tag);
-    });
-
-    tagsToApply.forEach((tag) => {
-      if (!this.tagExists(entry, tag.sys.id)) {
-        entry.metadata.tags.push(tag);
-      }
-    });
-  };
-
   tagExists = (entry, tagName) =>
     entry.metadata.tags.some((el) => el.sys.id === tagName);
 
@@ -533,40 +390,6 @@ class Integration extends Component {
       id: t,
     },
   });
-
-  removeTag = (entry, tagName) => {
-    if (this.tagExists(entry, tagName)) {
-      const i = entry.metadata.tags.findIndex((obj) => obj.sys.id === tagName);
-      entry.metadata.tags.splice(i, 1);
-    }
-  };
-
-  submitForm = () => {
-    const { translation, uploadedJsonContent } = this.state;
-    const parsedTranslation = Helpers.safelyParseJSON(translation);
-
-    if (
-      !!uploadedJsonContent &&
-      Object.keys(uploadedJsonContent).length !== 0
-    ) {
-      this.importContent(uploadedJsonContent);
-    } else if (parsedTranslation) {
-      this.importContent(parsedTranslation);
-    } else {
-      const importLog = "Invalid json file. Import failed.";
-      this.setState({ importLog, openImportLogModal: true });
-    }
-  };
-
-  handleCloseImportLogModal = () => {
-    this.setState({
-      openImportLogModal: false,
-      importLog: "",
-      errorLog: "",
-      metaTagsToApply: [],
-      metaTagsToRemove: [],
-    });
-  };
 
   handleMetaExport = async () => {
     const { contentTypes, environmentObject, selectedMetaTags } = this.state;
@@ -658,10 +481,6 @@ class Integration extends Component {
     this.setState({ selectedMetaTags: value });
   };
 
-  handleFormFieldChange = (e, { name, value }) => {
-    this.setState({ [name]: value });
-  };
-
   setTagsForTagging = (e, { value }) => {
     // Set the metatags used for export
     this.setState({ selectedTagsForTagging: value });
@@ -695,39 +514,13 @@ class Integration extends Component {
   };
 
   import = () => {
-    const {
-      translation,
-      locales,
-      targetLocale,
-      openImportLogModal,
-      importLog,
-      errorLog,
-      selectedEnvironment,
-      uploadedFiles,
-      tags,
-      metaTagsToApply,
-      metaTagsToRemove,
-    } = this.state;
+    const { locales, environmentObject, tags } = this.state;
 
     return (
       <Import
-        translation={translation}
         locales={locales}
-        targetLocale={targetLocale}
-        openImportLogModal={openImportLogModal}
-        importLog={importLog}
-        errorLog={errorLog}
-        selectedEnvironment={selectedEnvironment}
-        uploadedFiles={uploadedFiles}
-        // tags
+        environmentObject={environmentObject}
         tags={tags}
-        onFormFieldChange={this.handleFormFieldChange}
-        selectedImportTagsToApply={metaTagsToApply}
-        selectedImportTagsToRemove={metaTagsToRemove}
-        // functions
-        submitForm={this.submitForm}
-        handleCloseImportLogModal={this.handleCloseImportLogModal}
-        handleUploadTargetFiles={this.uploadTargetFiles}
       />
     );
   };

@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import isEqual from "lodash/isEqual";
 import PropTypes from "prop-types";
 import {
   Form,
@@ -11,6 +12,7 @@ import {
 } from "semantic-ui-react";
 import Files from "react-files";
 import ImportLogModal from "../ImportLogModal/ImportLogModal";
+import Helpers from "../../utils/Helpers";
 import "./Import.css";
 
 class UploadedFile extends Component {
@@ -32,24 +34,44 @@ class UploadedFile extends Component {
 }
 
 class Import extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      translation: "",
+      targetLocale: "",
+      metaTagsToApply: [],
+      metaTagsToRemove: [],
+      uploadedFiles: [],
+      uploadedJsonContent: {},
+      importLog: "",
+      openImportLogModal: false,
+      errorLog: "",
+    };
+
+    this.fileReader = new FileReader();
+    this.fileReader.onload = (event) => {
+      try {
+        this.setState({ uploadedJsonContent: JSON.parse(event.target.result) });
+      } catch (error) {
+        const importLog = "Invalid json file. Upload failed.";
+        this.setState({
+          importLog,
+          openImportLogModal: true,
+          uploadedFiles: [],
+          uploadedJsonContent: {},
+        });
+      }
+    };
+  }
+
   static propTypes = {
-    translation: PropTypes.string.isRequired,
     locales: PropTypes.array.isRequired,
-    targetLocale: PropTypes.string.isRequired,
-    openImportLogModal: PropTypes.bool.isRequired,
-    importLog: PropTypes.string.isRequired,
-    errorLog: PropTypes.string.isRequired,
-    selectedEnvironment: PropTypes.string.isRequired,
-    uploadedFiles: PropTypes.array.isRequired,
-    // tags
+    environmentObject: PropTypes.object,
     tags: PropTypes.array.isRequired,
-    selectedImportTagsToApply: PropTypes.array.isRequired,
-    selectedImportTagsToRemove: PropTypes.array.isRequired,
-    // functions
-    onFormFieldChange: PropTypes.func.isRequired,
-    submitForm: PropTypes.func.isRequired,
-    handleCloseImportLogModal: PropTypes.func.isRequired,
-    handleUploadTargetFiles: PropTypes.func.isRequired,
+  };
+
+  handleFormFieldChange = (e, { name, value }) => {
+    this.setState({ [name]: value });
   };
 
   onFilesError = (error, file) => {
@@ -61,7 +83,7 @@ class Import extends Component {
   };
 
   showFiles() {
-    const { uploadedFiles } = this.props;
+    const { uploadedFiles } = this.state;
 
     if (uploadedFiles.length > 0) {
       return uploadedFiles.map((file) => (
@@ -75,27 +97,189 @@ class Import extends Component {
     }
   }
 
+  uploadTargetFiles = (files) => {
+    // Read the last uploaded file. To be changed to a method that allows iterrating over multiple files.
+    if (files.length) {
+      this.setState({ uploadedFiles: files });
+      this.fileReader.readAsText(files[files.length - 1]);
+    } else {
+      this.setState({ uploadedFiles: [], uploadedJsonContent: {} });
+    }
+  };
+
+  importContent = (parsedTranslation) => {
+    const { environmentObject } = this.props;
+    const { targetLocale } = this.state;
+
+    let updatedIds = [];
+    let failedIds = [];
+    let ignoredIds = [];
+
+    parsedTranslation.forEach((entryItem) => {
+      let keys = Object.keys(entryItem);
+      // Remove the id from the content to be imported
+      keys = keys.splice(0, keys.length - 1);
+
+      environmentObject
+        .getEntry(entryItem.entryId)
+        .then((entry) => {
+          let needsUpdating = false;
+          keys.forEach((key) => {
+            if (
+              // If the imported field has content for the chosen target language
+              entryItem[key][targetLocale] !== undefined &&
+              // And the translation is different to the source text
+              !isEqual(
+                entry.fields[key][targetLocale],
+                entryItem[key][targetLocale]
+              )
+            ) {
+              // Update the source text
+              needsUpdating = true;
+              entry.fields[key][targetLocale] = entryItem[key][targetLocale];
+              this.updateMetaTagsOnImport(entry);
+            }
+          });
+
+          if (needsUpdating) {
+            entry
+              .update()
+              .then(() => {
+                updatedIds.push(entryItem.entryId);
+                this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
+              })
+              .catch((e) => {
+                this.setErrorOnImport(
+                  e,
+                  entryItem,
+                  failedIds,
+                  updatedIds,
+                  ignoredIds
+                );
+              });
+          } else {
+            ignoredIds.push(entryItem.entryId);
+            this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
+          }
+        })
+        .catch((e) => {
+          this.setErrorOnImport(
+            e,
+            entryItem,
+            failedIds,
+            updatedIds,
+            ignoredIds
+          );
+        });
+    });
+
+    this.setState({
+      translation: "",
+      targetLocale: "",
+      uploadedJsonContent: {},
+      uploadedFiles: [],
+    });
+  };
+
+  setErrorOnImport = (e, entryItem, failedIds, updatedIds, ignoredIds) => {
+    console.log(e);
+    this.setState((st) => ({
+      errorLog:
+        st.errorLog +
+        `${e}\n\n=========================================================================================\n\n`,
+    }));
+    failedIds.push(entryItem.entryId);
+    this.writeAndShowImportLog(updatedIds, failedIds, ignoredIds);
+  };
+
+  updateMetaTagsOnImport = (entry) => {
+    const { metaTagsToApply, metaTagsToRemove } = this.state;
+
+    const tagsToApply = metaTagsToApply.map((t) => this.tagIdToObject(t));
+
+    metaTagsToRemove.forEach((tag) => {
+      this.removeTag(entry, tag);
+    });
+
+    tagsToApply.forEach((tag) => {
+      if (!this.tagExists(entry, tag.sys.id)) {
+        entry.metadata.tags.push(tag);
+      }
+    });
+  };
+
+  tagExists = (entry, tagName) =>
+    entry.metadata.tags.some((el) => el.sys.id === tagName);
+
+  tagIdToObject = (t) => ({
+    sys: {
+      type: "Link",
+      linkType: "Tag",
+      id: t,
+    },
+  });
+
+  removeTag = (entry, tagName) => {
+    if (this.tagExists(entry, tagName)) {
+      const i = entry.metadata.tags.findIndex((obj) => obj.sys.id === tagName);
+      entry.metadata.tags.splice(i, 1);
+    }
+  };
+
+  submitForm = () => {
+    const { translation, uploadedJsonContent } = this.state;
+    const parsedTranslation = Helpers.safelyParseJSON(translation);
+
+    if (
+      !!uploadedJsonContent &&
+      Object.keys(uploadedJsonContent).length !== 0
+    ) {
+      this.importContent(uploadedJsonContent);
+    } else if (parsedTranslation) {
+      this.importContent(parsedTranslation);
+    } else {
+      const importLog = "Invalid json file. Import failed.";
+      this.setState({ importLog, openImportLogModal: true });
+    }
+  };
+
+  writeAndShowImportLog = (updatedIds, failedIds, ignoredIds) => {
+    const importLog = `Entries updated (${
+      updatedIds.length
+    }): ${updatedIds.join(", ")}\n\nEntries failed (${
+      failedIds.length
+    }): ${failedIds.join(
+      ", "
+    )}\n\nEntries ignored - translation missing or does not differ from source text (${
+      ignoredIds.length
+    }): ${ignoredIds.join(", ")}`;
+
+    this.setState({ importLog, openImportLogModal: true });
+  };
+
+  handleCloseImportLogModal = () => {
+    this.setState({
+      openImportLogModal: false,
+      importLog: "",
+      errorLog: "",
+      metaTagsToApply: [],
+      metaTagsToRemove: [],
+    });
+  };
+
   import = () => {
+    const { locales, tags, environmentObject } = this.props;
+
     const {
-      // states from Integration
       translation,
-      locales,
       targetLocale,
-      openImportLogModal,
+      metaTagsToApply,
+      metaTagsToRemove,
+      uploadedFiles,
       importLog,
       errorLog,
-      selectedEnvironment,
-      uploadedFiles,
-      // tags
-      tags,
-      onFormFieldChange,
-      selectedImportTagsToApply,
-      selectedImportTagsToRemove,
-      // functions from Integration
-      submitForm,
-      handleCloseImportLogModal,
-      handleUploadTargetFiles,
-    } = this.props;
+      openImportLogModal,
+    } = this.state;
 
     return (
       <Segment color="grey">
@@ -115,11 +299,11 @@ class Import extends Component {
                   clearable
                   value={targetLocale}
                   options={locales}
-                  onChange={onFormFieldChange}
+                  onChange={this.handleFormFieldChange}
                 />
               </Grid.Column>
             </Grid.Row>
-            <p style={{ marginTop: "20px" }}>
+            <p style={{ marginTop: "20px", marginBottom: "0" }}>
               2. Choose the tag(s) to apply/remove on the entries on import
             </p>
             <Grid.Row columns={2}>
@@ -133,8 +317,8 @@ class Import extends Component {
                   fluid
                   search
                   options={tags}
-                  onChange={onFormFieldChange}
-                  value={selectedImportTagsToApply}
+                  onChange={this.handleFormFieldChange}
+                  value={metaTagsToApply}
                 />
               </Grid.Column>
               <Grid.Column>
@@ -147,8 +331,8 @@ class Import extends Component {
                   fluid
                   search
                   options={tags}
-                  onChange={onFormFieldChange}
-                  value={selectedImportTagsToRemove}
+                  onChange={this.handleFormFieldChange}
+                  value={metaTagsToRemove}
                 />
               </Grid.Column>
             </Grid.Row>
@@ -163,7 +347,7 @@ class Import extends Component {
             placeholder="Paste here the translated .json content..."
             name="translation"
             value={translation}
-            onChange={onFormFieldChange}
+            onChange={this.handleFormFieldChange}
             disabled={uploadedFiles.length > 0}
           />
 
@@ -172,7 +356,7 @@ class Import extends Component {
               ref="files"
               className="files-dropzone"
               onError={this.onFilesError}
-              onChange={handleUploadTargetFiles}
+              onChange={this.uploadTargetFiles}
               accepts={[".json"]}
               clickable
               multiple={false}
@@ -196,14 +380,14 @@ class Import extends Component {
           <br />
 
           <Button
-            color="teal"
+            color="yellow"
             disabled={
               (!translation && uploadedFiles.length === 0) ||
               !targetLocale ||
-              !selectedEnvironment
+              !environmentObject
             }
             fluid
-            onClick={submitForm}
+            onClick={this.submitForm}
           >
             Import
           </Button>
@@ -212,7 +396,7 @@ class Import extends Component {
           open={openImportLogModal}
           content={importLog}
           errorLog={errorLog}
-          handleCloseModal={handleCloseImportLogModal}
+          handleCloseModal={this.handleCloseImportLogModal}
         />
       </Segment>
     );
