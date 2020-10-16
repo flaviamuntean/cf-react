@@ -9,6 +9,7 @@ import {
   Grid,
   Modal,
   Icon,
+  Loader,
 } from "semantic-ui-react";
 
 class EntryTagger extends Component {
@@ -18,7 +19,9 @@ class EntryTagger extends Component {
       entryIdsForTagging: "",
       selectedTagsForTagging: [],
       confirmationModalOpen: false,
+      confirmationModalLoading: false,
       confirmationModalText: "",
+      errorLog: "",
     };
   }
 
@@ -35,35 +38,47 @@ class EntryTagger extends Component {
     const { entryIdsForTagging, selectedTagsForTagging } = this.state;
     const { environmentObject } = this.props;
     const ids = entryIdsForTagging.split(",");
+    this.setState({
+      confirmationModalLoading: true,
+      confirmationModalOpen: true,
+    });
 
-    ids.forEach((id) => {
-      environmentObject.getEntry(id).then((entry) => {
-        const tagsToApply = selectedTagsForTagging.map((t) =>
-          this.tagIdToObject(t)
-        );
+    const failedIds = [];
 
-        tagsToApply.forEach((tag) => {
-          if (!this.tagExists(entry, tag.sys.id)) {
-            entry.metadata.tags.push(tag);
-          }
-        });
-
-        entry
-          .update()
-          .then(() =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Tags updated.`,
-              entryIdsForTagging: [],
-              selectedTagsForTagging: [],
-            })
-          )
-          .catch((error) =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Error: ${error}.`,
-            })
+    const promises = ids.map(async (id) => {
+      await environmentObject
+        .getEntry(id)
+        .then((entry) => {
+          const tagsToApply = selectedTagsForTagging.map((t) =>
+            this.tagIdToObject(t)
           );
+
+          tagsToApply.forEach((tag) => {
+            if (!this.tagExists(entry, tag.sys.id)) {
+              entry.metadata.tags.push(tag);
+            }
+          });
+
+          entry.update().catch((error) => {
+            failedIds.push(id);
+            this.writeErrorLog(error);
+          });
+        })
+        .catch((error) => {
+          failedIds.push(id);
+          this.writeErrorLog(error);
+        });
+    });
+    Promise.all(promises).then(() => {
+      const text =
+        failedIds.length > 0
+          ? `Failed entries: ${failedIds.join(", ")}`
+          : "Entries updated";
+      this.setState({
+        confirmationModalLoading: false,
+        confirmationModalText: text,
+        entryIdsForTagging: [],
+        selectedTagsForTagging: [],
       });
     });
   };
@@ -72,37 +87,57 @@ class EntryTagger extends Component {
     const { entryIdsForTagging, selectedTagsForTagging } = this.state;
     const { environmentObject } = this.props;
     const ids = entryIdsForTagging.split(",");
+    this.setState({
+      confirmationModalLoading: true,
+      confirmationModalOpen: true,
+    });
 
-    ids.forEach((id) => {
-      environmentObject.getEntry(id).then((entry) => {
-        selectedTagsForTagging.forEach((tag) => {
-          if (this.tagExists(entry, tag)) {
-            // remove the ready tag
-            const i = entry.metadata.tags.findIndex(
-              (obj) => obj.sys.id === tag
-            );
-            entry.metadata.tags.splice(i, 1);
-          }
+    const failedIds = [];
+
+    let promises = ids.map(async (id) => {
+      await environmentObject
+        .getEntry(id)
+        .then((entry) => {
+          selectedTagsForTagging.forEach((tag) => {
+            if (this.tagExists(entry, tag)) {
+              // remove the tag
+              const i = entry.metadata.tags.findIndex(
+                (obj) => obj.sys.id === tag
+              );
+              entry.metadata.tags.splice(i, 1);
+            }
+          });
+
+          entry.update().catch((error) => {
+            failedIds.push(id);
+            this.writeErrorLog(error);
+          });
+        })
+        .catch((error) => {
+          failedIds.push(id);
+          this.writeErrorLog(error);
         });
-
-        entry
-          .update()
-          .then(() =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Tags updated.`,
-              entryIdsForTagging: [],
-              selectedTagsForTagging: [],
-            })
-          )
-          .catch((error) =>
-            this.setState({
-              confirmationModalOpen: true,
-              confirmationModalText: `Error: ${error}.`,
-            })
-          );
+    });
+    Promise.all(promises).then(() => {
+      const text =
+        failedIds.length > 0
+          ? `Failed entries: ${failedIds.join(", ")}`
+          : "Entries updated";
+      this.setState({
+        confirmationModalLoading: false,
+        confirmationModalText: text,
+        entryIdsForTagging: [],
+        selectedTagsForTagging: [],
       });
     });
+  };
+
+  writeErrorLog = (error) => {
+    this.setState((st) => ({
+      errorLog:
+        st.errorLog +
+        `\n\n=========================================================================================\n\n${error}`,
+    }));
   };
 
   tagExists = (entry, tagName) =>
@@ -117,28 +152,46 @@ class EntryTagger extends Component {
   });
 
   confirmationModal = () => {
-    const { confirmationModalOpen, confirmationModalText } = this.state;
+    const {
+      confirmationModalOpen,
+      confirmationModalText,
+      confirmationModalLoading,
+      errorLog,
+    } = this.state;
+
     return (
       <Modal
         basic
         open={confirmationModalOpen}
         size="small"
-        onClose={() => this.setState({ confirmationModalOpen: false })}
+        onClose={() =>
+          this.setState({ confirmationModalOpen: false, errorLog: "" })
+        }
       >
         <Header icon>
-          <Icon
-            name={
-              confirmationModalText.includes("Error")
-                ? "exclamation"
-                : "checkmark"
-            }
-          />
-          {confirmationModalText.includes("Error") ? "Error" : "Success"}
+          {confirmationModalLoading ? (
+            <Loader active inline="centered" />
+          ) : (
+            this.confirmationModalHeader()
+          )}
         </Header>
         <Modal.Content style={{ textAlign: "center" }}>
-          {confirmationModalText}
+          {confirmationModalLoading
+            ? "Updating tags..."
+            : `${confirmationModalText} ${errorLog}`}
         </Modal.Content>
       </Modal>
+    );
+  };
+
+  confirmationModalHeader = () => {
+    const { errorLog } = this.state;
+    return (
+      <div>
+        <Icon name={errorLog ? "exclamation" : "checkmark"} />
+
+        {errorLog ? "Error" : "Success"}
+      </div>
     );
   };
 
