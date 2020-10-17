@@ -1,5 +1,6 @@
 import React, { Component } from "react";
 import {
+  Form,
   Header,
   Grid,
   Button,
@@ -22,6 +23,7 @@ class ExportMeta extends Component {
       sourceText: "",
       numberSourceEntries: 0,
       sourceIds: [],
+      fieldsToExclude: "",
     };
   }
 
@@ -34,7 +36,7 @@ class ExportMeta extends Component {
   };
 
   handleMetaExport = () => {
-    const { selectedMetaTags } = this.state;
+    const { selectedMetaTags, fieldsToExclude } = this.state;
     const { contentTypes, environmentObject } = this.props;
 
     this.setState({ openSourceTextModal: true, sourceTextModalLoading: true });
@@ -58,20 +60,24 @@ class ExportMeta extends Component {
       // if the content type has any localizable fields
       if (localizable.length > 0) {
         // combine the ids of the localizable fields into the query needed for export
-        const localizableFields = localizable.map((field) => field.id);
+        const localizableFields = localizable
+          .filter((field) => !fieldsToExclude.split(",").includes(field.id))
+          .map((field) => field.id);
 
-        const fieldsForExport = localizableFields.map(
-          (field) => `fields.${field}`
-        );
+        if (localizableFields.length > 0) {
+          const fieldsForExport = localizableFields.map(
+            (field) => `fields.${field}`
+          );
 
-        // export all entries for the content type, but only the localizable fields
-        this.exportFieldsPerContentType(
-          environmentObject,
-          contentType,
-          fieldsForExport,
-          tagsForExport,
-          allContentForExport
-        );
+          // export all entries for the content type, but only the localizable fields
+          this.exportFieldsPerContentType(
+            environmentObject,
+            contentType,
+            fieldsForExport,
+            tagsForExport,
+            allContentForExport
+          );
+        }
       }
     });
     Promise.all(promises).then(() =>
@@ -175,17 +181,18 @@ class ExportMeta extends Component {
       sourceLocale: "",
       selectedMetaTags: [],
       sourceIds: [],
+      fieldsToExclude: "",
     });
   };
 
   filters = () => {
     const { contentTypes, tags, locales } = this.props;
 
-    const { selectedMetaTags, sourceLocale } = this.state;
+    const { selectedMetaTags, sourceLocale, fieldsToExclude } = this.state;
 
     if (contentTypes.length > 0) {
       return (
-        <Grid.Row columns={2}>
+        <Grid.Row columns={3}>
           <Grid.Column>
             <p style={{ marginTop: "20px" }}>1. Choose your source language</p>
             <Dropdown
@@ -200,9 +207,11 @@ class ExportMeta extends Component {
             />
           </Grid.Column>
           <Grid.Column>
-            <p style={{ marginTop: "20px" }}>2. Filter by one or more tags</p>
+            <p style={{ marginTop: "20px" }}>
+              2. Filter by one or more metadata tags
+            </p>
             <Dropdown
-              placeholder="Metadata tags (entry must include all selected tags)"
+              placeholder="Entry must include all selected tags"
               name="selectedMetaTags"
               multiple
               selection
@@ -212,6 +221,17 @@ class ExportMeta extends Component {
               options={tags}
               onChange={this.handleFormFieldChange}
               value={selectedMetaTags}
+            />
+          </Grid.Column>
+          <Grid.Column>
+            <p style={{ marginTop: "20px" }}>
+              3. Enter fields to exclude (separated by a comma)
+            </p>
+            <Form.Input
+              placeholder="slug,pageMetadata"
+              name="fieldsToExclude"
+              value={fieldsToExclude}
+              onChange={this.handleFormFieldChange}
             />
           </Grid.Column>
         </Grid.Row>
@@ -234,25 +254,27 @@ class ExportMeta extends Component {
     return (
       <Segment color="grey">
         <Header as="h2">Export Source Text</Header>
-        <Grid>
-          {this.filters()}
-          <Grid.Row columns={1}>
-            <Grid.Column>
-              <Button
-                color="teal"
-                fluid
-                disabled={
-                  !sourceLocale ||
-                  !environmentObject ||
-                  contentTypes.length === 0
-                }
-                onClick={this.handleMetaExport}
-              >
-                Export
-              </Button>
-            </Grid.Column>
-          </Grid.Row>
-        </Grid>
+        <Form>
+          <Grid>
+            {this.filters()}
+            <Grid.Row columns={1}>
+              <Grid.Column>
+                <Button
+                  color="teal"
+                  fluid
+                  disabled={
+                    !sourceLocale ||
+                    !environmentObject ||
+                    contentTypes.length === 0
+                  }
+                  onClick={this.handleMetaExport}
+                >
+                  Export
+                </Button>
+              </Grid.Column>
+            </Grid.Row>
+          </Grid>
+        </Form>
       </Segment>
     );
   };
