@@ -72,7 +72,9 @@ export default class Helpers {
   };
 
   static filterByLocalizable = (response) => {
-    return response.filter((field) => field.localized === true);
+    return response.filter(
+      (field) => field.localized === true && field.type !== "Link"
+    );
   };
 
   static getUniqueFieldValues = (entries, chosenField, sourceLocale) => {
