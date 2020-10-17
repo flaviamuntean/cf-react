@@ -4,7 +4,6 @@ import {
   Grid,
   Button,
   Dropdown,
-  Loader,
   Message,
   Segment,
 } from "semantic-ui-react";
@@ -65,59 +64,89 @@ class ExportMeta extends Component {
           (field) => `fields.${field}`
         );
 
-        // export all entries for the content type, but only the localizable fields + filters
-        environmentObject
-          .getEntries({
-            content_type: contentType,
-            select: fieldsForExport,
-            limit: 1000,
-            "metadata.tags.sys.id[all]": tagsForExport,
-          })
-          .then((entries) => {
-            // keep only the fields and the sys info
-            let numberExportedEntries = 0;
-
-            const localizableEntries = entries.items
-              .map((item) => {
-                const id = item.sys.id;
-                if (item.fields) {
-                  const fields = Helpers.filterByLang(
-                    item.fields,
-                    this.state.sourceLocale
-                  );
-
-                  if (
-                    Object.keys(fields).length === 0 &&
-                    fields.constructor === Object
-                  ) {
-                    return null;
-                  } else {
-                    fields.entryId = id;
-                    numberExportedEntries++;
-                    return fields;
-                  }
-                }
-                return null;
-              })
-              .filter((entry) => entry !== null);
-
-            allContentForExport.push(localizableEntries);
-
-            this.setState((prevState, props) => ({
-              sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
-              sourceIds: allContentForExport.flat().map((e) => e.entryId),
-              numberSourceEntries:
-                prevState.numberSourceEntries + numberExportedEntries,
-            }));
-          })
-          .catch((error) => {
-            console.log(error);
-          });
+        // export all entries for the content type, but only the localizable fields
+        this.exportFieldsPerContentType(
+          environmentObject,
+          contentType,
+          fieldsForExport,
+          tagsForExport,
+          allContentForExport
+        );
       }
     });
     Promise.all(promises).then(() =>
       this.setState({ sourceTextModalLoading: false })
     );
+  };
+
+  exportFieldsPerContentType = async (
+    environmentObject,
+    contentType,
+    fieldsForExport,
+    tagsForExport,
+    allContentForExport,
+    allentries = [],
+    skip = 0
+  ) => {
+    const results = await environmentObject.getEntries({
+      content_type: contentType,
+      select: fieldsForExport,
+      limit: 1000,
+      skip: skip,
+      "metadata.tags.sys.id[all]": tagsForExport,
+    });
+    const entries = [...allentries, ...results.items];
+    if (entries.length < results.total) {
+      this.exportFieldsPerContentType(
+        environmentObject,
+        contentType,
+        fieldsForExport,
+        tagsForExport,
+        allContentForExport,
+        entries,
+        skip + 1000
+      );
+    } else {
+      this.preProcessEntries(entries, allContentForExport);
+    }
+  };
+
+  preProcessEntries = (entries, allContentForExport) => {
+    // keep only the fields and the sys info
+    let numberExportedEntries = 0;
+
+    const localizableEntries = entries
+      .map((item) => {
+        const id = item.sys.id;
+        if (item.fields) {
+          const fields = Helpers.filterByLang(
+            item.fields,
+            this.state.sourceLocale
+          );
+
+          if (
+            Object.keys(fields).length === 0 &&
+            fields.constructor === Object
+          ) {
+            return null;
+          } else {
+            fields.entryId = id;
+            numberExportedEntries++;
+            return fields;
+          }
+        }
+        return null;
+      })
+      .filter((entry) => entry !== null);
+
+    allContentForExport.push(localizableEntries);
+
+    this.setState((prevState, props) => ({
+      sourceText: JSON.stringify(allContentForExport.flat(), null, 2),
+      sourceIds: allContentForExport.flat().map((e) => e.entryId),
+      numberSourceEntries:
+        prevState.numberSourceEntries + numberExportedEntries,
+    }));
   };
 
   handleFormFieldChange = (e, { name, value }) => {
