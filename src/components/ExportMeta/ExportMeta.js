@@ -33,7 +33,7 @@ class ExportMeta extends Component {
     addToIntegrationState: PropTypes.func.isRequired,
   };
 
-  handleMetaExport = async () => {
+  handleMetaExport = () => {
     const { selectedMetaTags } = this.state;
     const { contentTypes, environmentObject } = this.props;
 
@@ -88,13 +88,23 @@ class ExportMeta extends Component {
     allentries = [],
     skip = 0
   ) => {
-    const results = await environmentObject.getEntries({
-      content_type: contentType,
-      select: fieldsForExport,
-      limit: 1000,
-      skip: skip,
-      "metadata.tags.sys.id[all]": tagsForExport,
-    });
+    let results;
+    if (tagsForExport) {
+      results = await environmentObject.getEntries({
+        content_type: contentType,
+        select: fieldsForExport,
+        limit: 1000,
+        skip: skip,
+        "metadata.tags.sys.id[all]": tagsForExport,
+      });
+    } else {
+      results = await environmentObject.getEntries({
+        content_type: contentType,
+        select: fieldsForExport,
+        limit: 1000,
+        skip: skip,
+      });
+    }
     const entries = [...allentries, ...results.items];
     if (entries.length < results.total) {
       this.exportFieldsPerContentType(
@@ -219,7 +229,7 @@ class ExportMeta extends Component {
 
   export = () => {
     const { environmentObject, contentTypes } = this.props;
-    const { selectedMetaTags, sourceLocale } = this.state;
+    const { sourceLocale } = this.state;
 
     return (
       <Segment color="grey">
@@ -234,8 +244,7 @@ class ExportMeta extends Component {
                 disabled={
                   !sourceLocale ||
                   !environmentObject ||
-                  contentTypes.length === 0 ||
-                  selectedMetaTags.length === 0
+                  contentTypes.length === 0
                 }
                 onClick={this.handleMetaExport}
               >
