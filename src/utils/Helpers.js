@@ -50,7 +50,7 @@ export default class Helpers {
   static generateLocalesDropdown = (locales) => {
     return locales.items.map((locale) => ({
       key: locale.sys.id,
-      text: locale.name,
+      text: `${locale.name} (${locale.code})`,
       value: locale.code,
     }));
   };
