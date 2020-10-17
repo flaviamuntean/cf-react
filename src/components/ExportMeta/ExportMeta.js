@@ -33,7 +33,7 @@ class ExportMeta extends Component {
     addToIntegrationState: PropTypes.func.isRequired,
   };
 
-  handleMetaExport = async () => {
+  handleMetaExport = () => {
     const { selectedMetaTags } = this.state;
     const { contentTypes, environmentObject } = this.props;
 
