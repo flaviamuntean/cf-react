@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Modal, Icon, Button, Placeholder } from "semantic-ui-react";
+import { Modal, Icon, Button, Placeholder, Image } from "semantic-ui-react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 
 class SourceTextModal extends Component {
@@ -55,40 +55,48 @@ class SourceTextModal extends Component {
       return (
         <Modal open={open} closeIcon onClose={handleCloseModal}>
           <Modal.Header>
-            Source text (number of entries: {numberSourceEntries})
+            {numberSourceEntries === 0
+              ? "No entries found"
+              : `Source text (number of entries: ${numberSourceEntries})`}
           </Modal.Header>
           <Modal.Content scrolling>
             <Modal.Description>
-              <p style={{ whiteSpace: "pre" }}>{sourceText}</p>
+              {numberSourceEntries === 0 ? (
+                <Image src="not_found.svg" size="medium" centered />
+              ) : (
+                <p style={{ whiteSpace: "pre" }}>{sourceText}</p>
+              )}
             </Modal.Description>
           </Modal.Content>
-          <Modal.Actions>
-            <a
-              href={sourceIdsData}
-              download="entry_ids.txt"
-              style={{ color: "white" }}
-            >
-              <Button primary>
-                <Icon name="download" />
-                Download Entry IDs
-              </Button>
-            </a>
-            <a href={data} download="source.json" style={{ color: "white" }}>
-              <Button primary>
-                <Icon name="download" />
-                Download JSON
-              </Button>
-            </a>
-            <CopyToClipboard text={sourceText}>
-              <Button
-                primary
-                onClick={() => this.handleClick()}
-                className="copy-source-text"
+          {numberSourceEntries !== 0 && (
+            <Modal.Actions>
+              <a
+                href={sourceIdsData}
+                download="entry_ids.txt"
+                style={{ color: "white" }}
               >
-                <Icon name="clipboard" /> Copy
-              </Button>
-            </CopyToClipboard>
-          </Modal.Actions>
+                <Button primary>
+                  <Icon name="download" />
+                  Download Entry IDs
+                </Button>
+              </a>
+              <a href={data} download="source.json" style={{ color: "white" }}>
+                <Button primary>
+                  <Icon name="download" />
+                  Download JSON
+                </Button>
+              </a>
+              <CopyToClipboard text={sourceText}>
+                <Button
+                  primary
+                  onClick={() => this.handleClick()}
+                  className="copy-source-text"
+                >
+                  <Icon name="clipboard" /> Copy
+                </Button>
+              </CopyToClipboard>
+            </Modal.Actions>
+          )}
         </Modal>
       );
     }
