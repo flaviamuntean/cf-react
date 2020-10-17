@@ -64,7 +64,20 @@ export default class Helpers {
   };
 
   static generateTagsForDropdown = (tags) => {
-    return tags.items.map((t) => ({
+    const orderedTags = tags.items.sort((a, b) => {
+      const nameA = a.name.toUpperCase(); // ignore upper and lowercase
+      const nameB = b.name.toUpperCase(); // ignore upper and lowercase
+      if (nameA < nameB) {
+        return -1;
+      }
+      if (nameA > nameB) {
+        return 1;
+      }
+
+      // names must be equal
+      return 0;
+    });
+    return orderedTags.map((t) => ({
       key: t.sys.id,
       text: t.name,
       value: t.sys.id,
