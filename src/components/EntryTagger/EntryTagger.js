@@ -49,20 +49,24 @@ class EntryTagger extends Component {
       await environmentObject
         .getEntry(id)
         .then((entry) => {
+          let needsUpdating = false;
           const tagsToApply = selectedTagsForTagging.map((t) =>
             this.tagIdToObject(t)
           );
 
           tagsToApply.forEach((tag) => {
             if (!this.tagExists(entry, tag.sys.id)) {
+              needsUpdating = true;
               entry.metadata.tags.push(tag);
             }
           });
 
-          entry.update().catch((error) => {
-            failedIds.push(id);
-            this.writeErrorLog(error);
-          });
+          if (needsUpdating) {
+            entry.update().catch((error) => {
+              failedIds.push(id);
+              this.writeErrorLog(error);
+            });
+          }
         })
         .catch((error) => {
           failedIds.push(id);
@@ -98,8 +102,10 @@ class EntryTagger extends Component {
       await environmentObject
         .getEntry(id)
         .then((entry) => {
+          let needsUpdating = false;
           selectedTagsForTagging.forEach((tag) => {
             if (this.tagExists(entry, tag)) {
+              needsUpdating = true;
               // remove the tag
               const i = entry.metadata.tags.findIndex(
                 (obj) => obj.sys.id === tag
@@ -108,10 +114,12 @@ class EntryTagger extends Component {
             }
           });
 
-          entry.update().catch((error) => {
-            failedIds.push(id);
-            this.writeErrorLog(error);
-          });
+          if (needsUpdating) {
+            entry.update().catch((error) => {
+              failedIds.push(id);
+              this.writeErrorLog(error);
+            });
+          }
         })
         .catch((error) => {
           failedIds.push(id);

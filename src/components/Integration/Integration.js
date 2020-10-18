@@ -77,6 +77,7 @@ class Integration extends Component {
     if (this.props.accessToken) {
       this.managementClient = createClient({
         accessToken: this.props.accessToken,
+        timeout: 999999,
       });
       this.getSpaces();
       const cookieData = CookieUtils.readUserStateFromCookies();
