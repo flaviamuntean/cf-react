@@ -115,6 +115,103 @@ class Import extends Component {
     let failedIds = [];
     let ignoredIds = [];
 
+    console.log(parsedTranslation);
+
+    let i = 0; //  set your counter to 1
+    let j = parsedTranslation.length;
+    let chunk = 100;
+
+    if (parsedTranslation.length > 300) {
+      let temparray = parsedTranslation.slice(i, i + chunk);
+      console.log(temparray);
+      this.importContentPerEntry(
+        temparray,
+        environmentObject,
+        targetLocale,
+        updatedIds,
+        failedIds,
+        ignoredIds
+      );
+      this.myLoop(
+        i + 100,
+        j,
+        chunk,
+        parsedTranslation,
+        environmentObject,
+        targetLocale,
+        updatedIds,
+        failedIds,
+        ignoredIds
+      );
+    } else {
+      this.importContentPerEntry(
+        parsedTranslation,
+        environmentObject,
+        targetLocale,
+        updatedIds,
+        failedIds,
+        ignoredIds
+      );
+    }
+
+    this.setState({
+      translation: "",
+      targetLocale: "",
+      uploadedJsonContent: {},
+      uploadedFiles: [],
+    });
+  };
+
+  myLoop = (
+    i,
+    j,
+    chunk,
+    parsedTranslation,
+    environmentObject,
+    targetLocale,
+    updatedIds,
+    failedIds,
+    ignoredIds
+  ) => {
+    //  create a loop function
+    setTimeout(() => {
+      //  call a 3s setTimeout when the loop is called
+      let temparray = parsedTranslation.slice(i, i + chunk); //  your code here
+      console.log(temparray);
+      this.importContentPerEntry(
+        temparray,
+        environmentObject,
+        targetLocale,
+        updatedIds,
+        failedIds,
+        ignoredIds
+      );
+      i += chunk; //  increment the counter
+      if (i < j) {
+        //  if the counter < 10, call the loop function
+        this.myLoop(
+          i,
+          j,
+          chunk,
+          parsedTranslation,
+          environmentObject,
+          targetLocale,
+          updatedIds,
+          failedIds,
+          ignoredIds
+        ); //  ..  again which will trigger another
+      } //  ..  setTimeout()
+    }, 10000);
+  };
+
+  importContentPerEntry = (
+    parsedTranslation,
+    environmentObject,
+    targetLocale,
+    updatedIds,
+    failedIds,
+    ignoredIds
+  ) => {
     parsedTranslation.forEach((entryItem) => {
       let keys = Object.keys(entryItem);
       // Remove the id from the content to be imported
@@ -171,13 +268,6 @@ class Import extends Component {
             ignoredIds
           );
         });
-    });
-
-    this.setState({
-      translation: "",
-      targetLocale: "",
-      uploadedJsonContent: {},
-      uploadedFiles: [],
     });
   };
 
