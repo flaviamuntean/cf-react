@@ -135,10 +135,12 @@ class ExportMeta extends Component {
       .map((item) => {
         const id = item.sys.id;
         if (item.fields) {
-          const fields = Helpers.filterByLang(
-            item.fields,
-            this.state.sourceLocale
-          );
+          let fields;
+          if (this.state.sourceLocale) {
+            fields = Helpers.filterByLang(item.fields, this.state.sourceLocale);
+          } else {
+            fields = item.fields;
+          }
 
           if (
             Object.keys(fields).length === 0 &&
@@ -249,7 +251,6 @@ class ExportMeta extends Component {
 
   export = () => {
     const { environmentObject, contentTypes } = this.props;
-    const { sourceLocale } = this.state;
 
     return (
       <Segment color="grey">
@@ -262,11 +263,7 @@ class ExportMeta extends Component {
                 <Button
                   color="teal"
                   fluid
-                  disabled={
-                    !sourceLocale ||
-                    !environmentObject ||
-                    contentTypes.length === 0
-                  }
+                  disabled={!environmentObject || contentTypes.length === 0}
                   onClick={this.handleMetaExport}
                 >
                   Export
